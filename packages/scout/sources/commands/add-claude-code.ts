@@ -1,14 +1,17 @@
-import { confirm, intro, isCancel, outro, password } from "@clack/prompts";
+import { confirm, intro, isCancel, outro, password, text } from "@clack/prompts";
 import path from "node:path";
 
+import type { InferenceProviderConfig } from "../auth.js";
 import { readAuthFile, writeAuthFile } from "../auth.js";
 
 export type AddClaudeCodeOptions = {
   token?: string;
+  model?: string;
+  main?: boolean;
   output: string;
 };
 
-const DEFAULT_OUTPUT = "auth.json";
+const DEFAULT_OUTPUT = ".scout/auth.json";
 
 export async function addClaudeCodeCommand(
   options: AddClaudeCodeOptions
@@ -30,6 +33,19 @@ export async function addClaudeCodeCommand(
   }
 
   const token = String(tokenInput);
+  const modelInput =
+    options.model ??
+    (await text({
+      message: "Claude Code model id",
+      validate: (value) => (value ? undefined : "Model id is required")
+    }));
+
+  if (isCancel(modelInput)) {
+    outro("Canceled.");
+    return;
+  }
+
+  const model = String(modelInput);
   const auth = await readAuthFile(outputPath);
 
   if (auth["claude-code"]?.token || auth.claude?.token) {
@@ -45,7 +61,25 @@ export async function addClaudeCodeCommand(
   }
 
   auth["claude-code"] = { token };
+  auth.inference = {
+    providers: updateProviders(auth.inference?.providers, {
+      id: "claude-code",
+      model,
+      main: options.main
+    })
+  };
   await writeAuthFile(outputPath, auth);
 
   outro(`Saved Claude Code token to ${outputPath}`);
+}
+
+function updateProviders(
+  providers: InferenceProviderConfig[] | undefined,
+  entry: InferenceProviderConfig
+): InferenceProviderConfig[] {
+  const list = (providers ?? []).filter((item) => item.id !== entry.id);
+  if (entry.main) {
+    return [{ ...entry, main: true }, ...list.map((item) => ({ ...item, main: false }))];
+  }
+  return [...list, { ...entry, main: false }];
 }

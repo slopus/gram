@@ -1,6 +1,6 @@
 # Auth tokens
 
-Scout stores connector and inference tokens in a local `auth.json` file.
+Scout stores connector and inference tokens in `.scout/auth.json`.
 
 ## Structure
 ```json
@@ -19,9 +19,9 @@ Scout stores connector and inference tokens in a local `auth.json` file.
 ```mermaid
 flowchart TD
   CLI[add command] --> Prompt[token prompt]
-  Prompt --> Auth[auth.json]
+  Prompt --> Auth[.scout/auth.json]
 ```
 
 ## Usage
-- `start` reads `auth.json` to load telegram tokens.
-- `inference` helpers read `auth.json` when a token is not passed explicitly.
+- `start` reads `.scout/auth.json` to load telegram tokens.
+- `inference` helpers read `.scout/auth.json` when a token is not passed explicitly.

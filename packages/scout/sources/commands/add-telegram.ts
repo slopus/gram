@@ -8,7 +8,7 @@ export type AddTelegramOptions = {
   output: string;
 };
 
-const DEFAULT_OUTPUT = "auth.json";
+const DEFAULT_OUTPUT = ".scout/auth.json";
 
 export async function addTelegramCommand(
   options: AddTelegramOptions

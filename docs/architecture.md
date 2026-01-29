@@ -19,7 +19,7 @@ flowchart LR
   Connectors -->|message| Sessions[SessionManager]
   Cron[CronScheduler] -->|message| Sessions
   Start --> PM2[Pm2Runtime]
-  Start --> Auth[auth.json]
+  Start --> Auth[.scout/auth.json]
   Auth --> Inference[Inference client]
   Sessions -->|handler| Echo[echo handler]
   Echo -->|sendMessage| Connectors

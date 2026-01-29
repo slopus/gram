@@ -39,6 +39,8 @@ addCommand
   .command("codex")
   .description("Add Codex token")
   .option("-t, --token <token>", "Codex token")
+  .option("-m, --model <id>", "Codex model id")
+  .option("--main", "Set Codex as the primary model")
   .option("-o, --output <path>", "Auth output path", "auth.json")
   .action(addCodexCommand);
 
@@ -46,6 +48,8 @@ addCommand
   .command("claude")
   .description("Add Claude Code token")
   .option("-t, --token <token>", "Claude Code token")
+  .option("-m, --model <id>", "Claude Code model id")
+  .option("--main", "Set Claude Code as the primary model")
   .option("-o, --output <path>", "Auth output path", "auth.json")
   .action(addClaudeCodeCommand);
 

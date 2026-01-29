@@ -95,7 +95,7 @@ export async function startCommand(options: StartOptions): Promise<void> {
   if (telegramToken) {
     if (!telegramAuthToken && telegramLegacyToken) {
       logger.warn(
-        "telegram auth should be stored in auth.json (auth.telegram.token)"
+        "telegram auth should be stored in .scout/auth.json (auth.telegram.token)"
       );
     }
     logger.info("load: telegram");

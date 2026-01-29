@@ -5,15 +5,28 @@ export type AuthEntry = {
   token: string;
 };
 
+export type InferenceProviderId = "codex" | "claude-code";
+
+export type InferenceProviderConfig = {
+  id: InferenceProviderId;
+  model: string;
+  main?: boolean;
+};
+
+export type InferenceConfig = {
+  providers?: InferenceProviderConfig[];
+};
+
 export type AuthConfig = {
   telegram?: AuthEntry;
   codex?: AuthEntry;
   "openai-codex"?: AuthEntry;
   "claude-code"?: AuthEntry;
   claude?: AuthEntry;
+  inference?: InferenceConfig;
 };
 
-export const DEFAULT_AUTH_PATH = "auth.json";
+export const DEFAULT_AUTH_PATH = ".scout/auth.json";
 
 export async function readAuthFile(
   filePath: string = DEFAULT_AUTH_PATH
@@ -63,4 +76,23 @@ export function getCodexToken(auth: AuthConfig): string | null {
 
 export function getClaudeCodeToken(auth: AuthConfig): string | null {
   return auth["claude-code"]?.token ?? auth.claude?.token ?? null;
+}
+
+export function getInferenceProviders(
+  auth: AuthConfig
+): InferenceProviderConfig[] {
+  const providers = auth.inference?.providers ?? [];
+  if (providers.length === 0) {
+    return [];
+  }
+
+  const mainProviders = providers.filter((entry) => entry.main);
+  if (mainProviders.length === 0) {
+    return [...providers];
+  }
+
+  return [
+    ...mainProviders,
+    ...providers.filter((entry) => !entry.main)
+  ];
 }

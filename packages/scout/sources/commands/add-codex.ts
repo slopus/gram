@@ -1,14 +1,17 @@
-import { confirm, intro, isCancel, outro, password } from "@clack/prompts";
+import { confirm, intro, isCancel, outro, password, text } from "@clack/prompts";
 import path from "node:path";
 
+import type { InferenceProviderConfig } from "../auth.js";
 import { readAuthFile, writeAuthFile } from "../auth.js";
 
 export type AddCodexOptions = {
   token?: string;
+  model?: string;
+  main?: boolean;
   output: string;
 };
 
-const DEFAULT_OUTPUT = "auth.json";
+const DEFAULT_OUTPUT = ".scout/auth.json";
 
 export async function addCodexCommand(options: AddCodexOptions): Promise<void> {
   intro("scout add codex");
@@ -28,6 +31,19 @@ export async function addCodexCommand(options: AddCodexOptions): Promise<void> {
   }
 
   const token = String(tokenInput);
+  const modelInput =
+    options.model ??
+    (await text({
+      message: "Codex model id",
+      validate: (value) => (value ? undefined : "Model id is required")
+    }));
+
+  if (isCancel(modelInput)) {
+    outro("Canceled.");
+    return;
+  }
+
+  const model = String(modelInput);
   const auth = await readAuthFile(outputPath);
 
   if (auth.codex?.token) {
@@ -43,7 +59,25 @@ export async function addCodexCommand(options: AddCodexOptions): Promise<void> {
   }
 
   auth.codex = { token };
+  auth.inference = {
+    providers: updateProviders(auth.inference?.providers, {
+      id: "codex",
+      model,
+      main: options.main
+    })
+  };
   await writeAuthFile(outputPath, auth);
 
   outro(`Saved codex token to ${outputPath}`);
+}
+
+function updateProviders(
+  providers: InferenceProviderConfig[] | undefined,
+  entry: InferenceProviderConfig
+): InferenceProviderConfig[] {
+  const list = (providers ?? []).filter((item) => item.id !== entry.id);
+  if (entry.main) {
+    return [{ ...entry, main: true }, ...list.map((item) => ({ ...item, main: false }))];
+  }
+  return [...list, { ...entry, main: false }];
 }

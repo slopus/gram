@@ -15,7 +15,7 @@ sequenceDiagram
   participant Caller
   participant Auth
   participant PiAI
-  Caller->>Auth: read auth.json (if token missing)
+  Caller->>Auth: read .scout/auth.json (if token missing)
   Auth-->>Caller: token
   Caller->>PiAI: getModel(provider, model)
   Caller->>PiAI: complete/stream(context)
