@@ -1,13 +1,13 @@
 # Configuration
 
 Scout reads config in two places when starting:
-1. `scout.config.json` (or the path passed to `scout start --config`).
+1. `.scout/scout.config.json` (or the path passed to `scout start --config`).
 2. `.scout/auth.json` for connector/inference tokens.
 3. `.scout/telegram.json` as a legacy fallback for Telegram tokens.
 
 ```mermaid
 flowchart TD
-  Start[scout start] --> ConfigFile[scout.config.json]
+  Start[scout start] --> ConfigFile[.scout/scout.config.json]
   Start --> Auth[.scout/auth.json]
   ConfigFile -->|telegram missing| Fallback[.scout/telegram.json]
   ConfigFile --> Connectors
@@ -15,7 +15,7 @@ flowchart TD
   Fallback --> Connectors
 ```
 
-## Sample `scout.config.json`
+## Sample `.scout/scout.config.json`
 ```json
 {
   "connectors": {

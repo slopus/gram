@@ -3,7 +3,7 @@
 The CLI is implemented with Commander in `sources/main.ts`. It always initializes logging first.
 
 ## Commands
-- `start` - launches configured connectors and attaches the echo handler.
+- `start` - launches configured connectors and attaches the echo handler (default config `.scout/scout.config.json`).
 - `status` - placeholder status command.
 - `add telegram` - prompts for a bot token and writes `.scout/auth.json`.
 - `add codex` - prompts for a Codex token + model id and appends to inference providers.
@@ -36,7 +36,7 @@ sequenceDiagram
   participant Connector
   participant Sessions
   User->>CLI: scout start
-  CLI->>Config: load scout.config.json
+  CLI->>Config: load .scout/scout.config.json
   CLI->>Auth: read .scout/auth.json
   CLI->>Config: read .scout/telegram.json (legacy)
   CLI->>Connector: init connectors

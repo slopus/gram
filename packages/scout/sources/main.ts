@@ -18,7 +18,11 @@ program
 program
   .command("start")
   .description("Launch the scout bot")
-  .option("-c, --config <path>", "Path to config file", "scout.config.json")
+  .option(
+    "-c, --config <path>",
+    "Path to config file",
+    ".scout/scout.config.json"
+  )
   .action(startCommand);
 
 program
