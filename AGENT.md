@@ -23,3 +23,4 @@ yarn typecheck
 - avoid hidden side effects
 - commit after each ready-to-use change using Angular-style commits
 - build before each commit and run tests
+- document every change in `/docs/` with mermaid diagrams
