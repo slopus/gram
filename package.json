@@ -1,0 +1,14 @@
+{
+  "name": "scout",
+  "private": true,
+  "packageManager": "yarn@1.22.22",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "yarn workspaces run build",
+    "test": "yarn workspaces run test",
+    "test:watch": "yarn workspaces run test:watch",
+    "typecheck": "yarn workspaces run typecheck"
+  }
+}
