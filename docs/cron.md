@@ -23,3 +23,4 @@ flowchart TD
 ## Built-in action
 - `send-message` sends `task.message` to the task's target channel.
 - `task.source` selects the connector (defaults to `telegram`).
+- `channelId` (or `sessionId`) should be set to target a real chat.

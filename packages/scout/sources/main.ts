@@ -1,11 +1,9 @@
 import { Command } from "commander";
-import { addClaudeCodeCommand } from "./commands/add-claude-code.js";
-import { addCodexCommand } from "./commands/add-codex.js";
-import { addTelegramCommand } from "./commands/add-telegram.js";
-import { removeTelegramCommand } from "./commands/remove-telegram.js";
 import { startCommand } from "./commands/start.js";
 import { statusCommand } from "./commands/status.js";
 import { initLogging } from "./log.js";
+import { loadPluginCommand, unloadPluginCommand } from "./commands/plugins.js";
+import { setSecretCommand } from "./commands/secrets.js";
 
 const program = new Command();
 
@@ -20,9 +18,9 @@ program
   .command("start")
   .description("Launch the scout bot")
   .option(
-    "-c, --config <path>",
-    "Path to config file",
-    ".scout/scout.config.json"
+    "-s, --settings <path>",
+    "Path to settings file",
+    ".scout/settings.json"
   )
   .action(startCommand);
 
@@ -31,38 +29,29 @@ program
   .description("Show bot status")
   .action(statusCommand);
 
-const addCommand = program.command("add").description("Add a connector");
-const removeCommand = program
-  .command("remove")
-  .description("Remove a connector");
+const pluginCommand = program.command("plugins").description("Manage plugins");
 
-addCommand
-  .command("telegram")
-  .description("Add Telegram connector")
-  .option("-t, --token <token>", "Telegram bot token")
-  .action(addTelegramCommand);
+pluginCommand
+  .command("load")
+  .description("Load a plugin")
+  .argument("<id>", "Plugin id")
+  .action(loadPluginCommand);
 
-removeCommand
-  .command("telegram")
-  .description("Remove Telegram connector")
-  .option("-f, --force", "Skip confirmation prompt")
-  .action(removeTelegramCommand);
+pluginCommand
+  .command("unload")
+  .description("Unload a plugin")
+  .argument("<id>", "Plugin id")
+  .action(unloadPluginCommand);
 
-addCommand
-  .command("codex")
-  .description("Add Codex token")
-  .option("-t, --token <token>", "Codex token")
-  .option("-m, --model <id>", "Codex model id")
-  .option("--main", "Set Codex as the primary model")
-  .action(addCodexCommand);
+const secretsCommand = program.command("secrets").description("Manage secrets");
 
-addCommand
-  .command("claude")
-  .description("Add Claude Code token")
-  .option("-t, --token <token>", "Claude Code token")
-  .option("-m, --model <id>", "Claude Code model id")
-  .option("--main", "Set Claude Code as the primary model")
-  .action(addClaudeCodeCommand);
+secretsCommand
+  .command("set")
+  .description("Set a plugin secret")
+  .argument("<plugin>", "Plugin id")
+  .argument("<key>", "Secret key")
+  .argument("<value>", "Secret value")
+  .action(setSecretCommand);
 
 if (process.argv.length <= 2) {
   program.outputHelp();

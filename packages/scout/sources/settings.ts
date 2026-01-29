@@ -1,16 +1,51 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
-export type AgentProviderId = "codex" | "claude-code";
+import type { CronTaskConfig } from "./modules/runtime/cron.js";
+import type {
+  DockerContainerConfig,
+  DockerRuntimeConfig
+} from "./modules/runtime/containers.js";
+import type { Pm2ProcessConfig } from "./modules/runtime/pm2.js";
 
-export type AgentConfig = {
-  provider: AgentProviderId;
+export type PluginSettings = {
+  id: string;
+  enabled?: boolean;
+  config?: Record<string, unknown>;
+};
+
+export type InferenceProviderSettings = {
+  id: string;
   model?: string;
-  main?: boolean;
+  options?: Record<string, unknown>;
 };
 
 export type SettingsConfig = {
-  agents?: AgentConfig[];
+  engine?: {
+    socketPath?: string;
+    dataDir?: string;
+  };
+  plugins?: PluginSettings[];
+  inference?: {
+    providers?: InferenceProviderSettings[];
+  };
+  cron?: {
+    tasks?: CronTaskConfig[];
+  };
+  runtime?: {
+    pm2?: Pm2Config | Pm2ProcessConfig[];
+    containers?: DockerRuntimeConfig | DockerContainerConfig[];
+  };
+  memory?: {
+    enabled?: boolean;
+    maxEntries?: number;
+  };
+};
+
+export type Pm2Config = {
+  processes?: Pm2ProcessConfig[];
+  connectTimeoutMs?: number;
+  disconnectOnExit?: boolean;
 };
 
 export const DEFAULT_SETTINGS_PATH = ".scout/settings.json";
@@ -57,46 +92,32 @@ export async function updateSettingsFile(
   return updated;
 }
 
-export function getAgents(settings: SettingsConfig): AgentConfig[] {
-  const agents = settings.agents ?? [];
-  if (agents.length === 0) {
-    return [];
-  }
-
-  const primary = agents.filter((entry) => entry.main);
-  if (primary.length === 0) {
-    return [...agents];
-  }
-
-  return [
-    ...primary,
-    ...agents.filter((entry) => !entry.main)
-  ];
+export function listPlugins(settings: SettingsConfig): PluginSettings[] {
+  return settings.plugins ?? [];
 }
 
-export function upsertAgent(
-  agents: AgentConfig[] | undefined,
-  entry: Omit<AgentConfig, "main">,
-  makeMain?: boolean
-): AgentConfig[] {
-  const list = agents ?? [];
-  const existing = list.find((item) => item.provider === entry.provider);
-  const keepMain = makeMain === true ? true : existing?.main ?? false;
-  const filtered = list.filter((item) => item.provider !== entry.provider);
-
-  if (keepMain) {
-    return [
-      { ...entry, main: true },
-      ...filtered.map((item) => ({ ...item, main: false }))
-    ];
-  }
-
-  return [...filtered, { ...entry, main: false }];
+export function listEnabledPlugins(settings: SettingsConfig): PluginSettings[] {
+  return (settings.plugins ?? []).filter((plugin) => plugin.enabled !== false);
 }
 
-export function removeAgent(
-  agents: AgentConfig[] | undefined,
-  provider: AgentProviderId
-): AgentConfig[] {
-  return (agents ?? []).filter((item) => item.provider !== provider);
+export function upsertPlugin(
+  plugins: PluginSettings[] | undefined,
+  entry: PluginSettings
+): PluginSettings[] {
+  const list = plugins ?? [];
+  const filtered = list.filter((item) => item.id !== entry.id);
+  return [...filtered, entry];
+}
+
+export function removePlugin(
+  plugins: PluginSettings[] | undefined,
+  id: string
+): PluginSettings[] {
+  return (plugins ?? []).filter((item) => item.id !== id);
+}
+
+export function listInferenceProviders(
+  settings: SettingsConfig
+): InferenceProviderSettings[] {
+  return settings.inference?.providers ?? [];
 }

@@ -1,30 +1,33 @@
-# Auth tokens
+# Secrets Store
 
-Scout stores connector and inference tokens in `.scout/auth.json`.
-The path is fixed and cannot be overridden by CLI flags.
-Agent configuration (provider/model selection) lives in `.scout/settings.json`.
+Scout stores plugin credentials in `.scout/secrets.json`.
+The file is read by the engine on startup and on demand by plugins.
 
 ## Structure
 ```json
 {
-  "telegram": { "token": "..." },
-  "codex": { "token": "..." },
-  "claude-code": { "token": "..." }
+  "version": 1,
+  "secrets": {
+    "telegram": { "token": "..." },
+    "brave-search": { "apiKey": "..." },
+    "openai-codex": { "apiKey": "..." },
+    "anthropic": { "apiKey": "..." },
+    "gpt-image": { "apiKey": "..." },
+    "nanobanana": { "apiKey": "..." }
+  }
 }
 ```
 
 ## CLI helpers
-- `scout add telegram` writes `auth.telegram.token`
-- `scout add codex` writes `auth.codex.token`
-- `scout add claude` writes `auth.claude-code.token`
-Agent configuration is written to `.scout/settings.json`.
+- `scout secrets set <plugin> <key> <value>` updates the secrets store.
 
 ```mermaid
 flowchart TD
-  CLI[add command] --> Prompt[token prompt]
-  Prompt --> Auth[.scout/auth.json]
+  CLI[scout secrets set] --> Secrets[.scout/secrets.json]
+  Secrets --> Plugins
 ```
 
 ## Usage
-- `start` reads `.scout/auth.json` to load telegram tokens.
-- `inference` helpers read `.scout/auth.json` when a token is not passed explicitly.
+- Connectors read secrets for auth (e.g., Telegram token).
+- Inference providers read secrets for API keys.
+- Tool plugins read secrets for external services.

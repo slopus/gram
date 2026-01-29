@@ -1,13 +1,16 @@
 # Scout documentation
 
-This folder documents the current Scout CLI, connectors, sessions, and logging.
+This folder documents the current Scout CLI, plugins, sessions, and runtime.
 
 ## Index
 - `architecture.md` - system overview and message flow
 - `cli.md` - CLI commands and runtime behavior
 - `connectors.md` - connector abstraction and telegram connector
+- `plugins.md` - plugin system and built-in plugins
+- `dashboard.md` - scout-dashboard SPA + proxy
+- `memory.md` - memory engine and search
 - `cron.md` - cron scheduler tasks and actions
-- `auth.md` - auth tokens and helper commands
+- `auth.md` - secrets store and helper commands
 - `inference.md` - inference runtime helpers
 - `containers.md` - container runtime management (Docker)
 - `pm2.md` - pm2 runtime process management
@@ -24,6 +27,9 @@ flowchart TD
   Docs[Documentation] --> Arch[architecture.md]
   Docs --> CLI[cli.md]
   Docs --> Conn[connectors.md]
+  Docs --> Plugins[plugins.md]
+  Docs --> Dash[dashboard.md]
+  Docs --> Memory[memory.md]
   Docs --> Sess[sessions.md]
   Docs --> Config[config.md]
   Docs --> Auth[auth.md]

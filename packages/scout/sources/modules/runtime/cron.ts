@@ -99,6 +99,10 @@ export class CronScheduler {
     return normalized;
   }
 
+  listTasks(): CronTaskConfig[] {
+    return this.tasks.map((task) => ({ ...task }));
+  }
+
   private async dispatchTask(task: CronTask): Promise<void> {
     if (this.stopped) {
       return;

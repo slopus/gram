@@ -2,23 +2,34 @@
 
 Scout updates engine settings using a three-step strategy:
 
-1. **Local server running**: send a mutation request over the local HTTP socket at
-   `.scout/scout.sock`.
-2. **Local server not running**: write directly to the local config files
-   (for auth updates, `.scout/auth.json`; for agents, `.scout/settings.json`).
-3. **Remote server configured**: reserved for future use (protocol matches the
-   local socket transport).
-   Remote updates are currently not implemented.
+1. **Local server running**: send a mutation request over the local HTTP socket
+   at `.scout/scout.sock`.
+2. **Local server not running**: write directly to local files
+   (settings + secrets).
+3. **Remote server configured**: reserved for future use.
 
 ## Local socket
 The `start` command launches a Fastify server bound to a Unix socket.
 
-Current mutation endpoints:
-- `POST /v1/engine/auth/telegram`
-- `DELETE /v1/engine/auth/telegram`
-- `POST /v1/engine/auth/codex` (also updates `.scout/settings.json` agents)
-- `DELETE /v1/engine/auth/codex` (also updates `.scout/settings.json` agents)
-- `POST /v1/engine/auth/claude-code` (also updates `.scout/settings.json` agents)
-- `DELETE /v1/engine/auth/claude-code` (also updates `.scout/settings.json` agents)
-- `POST /v1/engine/connectors/load`
-- `POST /v1/engine/connectors/unload`
+Current endpoints:
+- `GET /v1/engine/status`
+- `GET /v1/engine/cron/tasks`
+- `GET /v1/engine/sessions`
+- `GET /v1/engine/sessions/:storageId`
+- `GET /v1/engine/memory/search?query=...`
+- `GET /v1/engine/plugins`
+- `POST /v1/engine/plugins/load`
+- `POST /v1/engine/plugins/unload`
+- `POST /v1/engine/secrets`
+- `GET /v1/engine/events` (SSE)
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant Engine
+  Client->>Engine: POST /v1/engine/plugins/load
+  Engine->>Engine: load plugin + update settings
+  Engine-->>Client: ok
+  Client->>Engine: GET /v1/engine/events
+  Engine-->>Client: stream events
+```

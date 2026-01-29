@@ -10,12 +10,16 @@ import type {
   MessageHandler
 } from "./types.js";
 import { getLogger } from "../log.js";
+import type { FileStore } from "../files/store.js";
+import type { FileReference } from "../files/types.js";
 
 export type TelegramConnectorOptions = {
   token: string;
   polling?: boolean;
   clearWebhook?: boolean;
   statePath?: string | null;
+  fileStore: FileStore;
+  dataDir: string;
   retry?: {
     minDelayMs?: number;
     maxDelayMs?: number;
@@ -35,6 +39,8 @@ export class TelegramConnector implements Connector {
   private pollingEnabled: boolean;
   private statePath: string | null;
   private lastUpdateId: number | null = null;
+  private fileStore: FileStore;
+  private dataDir: string;
   private retryAttempt = 0;
   private pendingRetry: NodeJS.Timeout | null = null;
   private persistTimer: NodeJS.Timeout | null = null;
@@ -49,6 +55,8 @@ export class TelegramConnector implements Connector {
     this.clearWebhookOnStart = options.clearWebhook ?? true;
     this.retryOptions = options.retry;
     this.onFatal = options.onFatal;
+    this.fileStore = options.fileStore;
+    this.dataDir = options.dataDir;
     this.statePath =
       options.statePath === undefined ? DEFAULT_STATE_PATH : options.statePath;
     if (this.statePath) {
@@ -64,8 +72,10 @@ export class TelegramConnector implements Connector {
     };
 
     this.bot.on("message", async (message) => {
+      const files = await this.extractFiles(message);
       const payload: ConnectorMessage = {
-        text: typeof message.text === "string" ? message.text : null
+        text: typeof message.text === "string" ? message.text : message.caption ?? null,
+        files: files.length > 0 ? files : undefined
       };
 
       const context: MessageContext = {
@@ -103,7 +113,34 @@ export class TelegramConnector implements Connector {
   }
 
   async sendMessage(targetId: string, message: ConnectorMessage): Promise<void> {
-    await this.bot.sendMessage(targetId, message.text ?? "");
+    const files = message.files ?? [];
+    if (files.length === 0) {
+      await this.bot.sendMessage(targetId, message.text ?? "");
+      return;
+    }
+
+    const first = files[0];
+    if (!first) {
+      return;
+    }
+    const rest = files.slice(1);
+    const caption = message.text ?? undefined;
+    await this.sendFile(targetId, first, caption);
+    for (const file of rest) {
+      await this.sendFile(targetId, file);
+    }
+  }
+
+  private async sendFile(
+    targetId: string,
+    file: FileReference,
+    caption?: string
+  ): Promise<void> {
+    if (file.mimeType.startsWith("image/")) {
+      await this.bot.sendPhoto(targetId, file.path, caption ? { caption } : undefined);
+      return;
+    }
+    await this.bot.sendDocument(targetId, file.path, caption ? { caption } : undefined);
   }
 
   private async initialize(): Promise<void> {
@@ -340,6 +377,65 @@ export class TelegramConnector implements Connector {
       logger.info("Telegram webhook cleared for polling");
     } catch (error) {
       logger.warn({ error }, "Failed to clear Telegram webhook");
+    }
+  }
+
+  private async extractFiles(message: TelegramBot.Message): Promise<FileReference[]> {
+    const files: FileReference[] = [];
+    if (message.photo && message.photo.length > 0) {
+      const largest = message.photo.reduce((prev, current) =>
+        (current.file_size ?? 0) > (prev.file_size ?? 0) ? current : prev
+      );
+      const stored = await this.downloadFile(
+        largest.file_id,
+        `photo-${largest.file_id}.jpg`,
+        "image/jpeg"
+      );
+      if (stored) {
+        files.push(stored);
+      }
+    }
+
+    if (message.document?.file_id) {
+      const stored = await this.downloadFile(
+        message.document.file_id,
+        message.document.file_name ?? `document-${message.document.file_id}`,
+        message.document.mime_type ?? "application/octet-stream"
+      );
+      if (stored) {
+        files.push(stored);
+      }
+    }
+
+    return files;
+  }
+
+  private async downloadFile(
+    fileId: string,
+    name: string,
+    mimeType: string
+  ): Promise<FileReference | null> {
+    const downloadDir = path.join(this.dataDir, "downloads");
+    await fs.mkdir(downloadDir, { recursive: true });
+    try {
+      const downloadedPath = await this.bot.downloadFile(fileId, downloadDir);
+      const stored = await this.fileStore.saveFromPath({
+        name,
+        mimeType,
+        source: "telegram",
+        path: downloadedPath
+      });
+      await fs.rm(downloadedPath, { force: true });
+      return {
+        id: stored.id,
+        name: stored.name,
+        mimeType: stored.mimeType,
+        size: stored.size,
+        path: stored.path
+      };
+    } catch (error) {
+      logger.warn({ error }, "Telegram file download failed");
+      return null;
     }
   }
 }

@@ -1,5 +1,8 @@
+import type { FileReference } from "../files/types.js";
+
 export type ConnectorMessage = {
   text: string | null;
+  files?: FileReference[];
 };
 
 export type MessageContext = {

@@ -1,39 +1,43 @@
 # Architecture
 
-Scout is a CLI-driven agent runner that wires connectors to a session manager.
+Scout is a plugin-driven engine that routes connector traffic through sessions, inference, tools, and memory.
 
 Key pieces:
-- **CLI** (`sources/main.ts`) sets up commands and logging.
-- **Connectors** expose `onMessage`/`sendMessage`.
-- **Cron scheduler** emits messages on timers for internal automation.
-- **PM2 runtime** keeps background processes running.
-- **Container runtime** manages Docker containers via API.
-- **Auth** stores tokens for connectors and inference.
-- **Settings** stores agent provider/model selection.
-- **Inference** wraps model providers for Codex/Claude Code.
-- **Session manager** serializes handling per session.
-- **Logging** is centralized via `initLogging`.
-- **Engine server** exposes a local HTTP socket for control-plane mutations.
+- **CLI** (`sources/main.ts`) starts the engine and manages plugins/secrets.
+- **Plugins** register connectors, inference providers, tools, and image generators.
+- **Secrets store** (`.scout/secrets.json`) holds plugin credentials.
+- **File store** persists attachments for connectors and tools.
+- **Session manager** serializes handling per session and persists state.
+- **Memory engine** records session updates and supports queries.
+- **Cron scheduler** emits timed messages into sessions.
+- **Inference router** picks providers from settings.
+- **Engine server** exposes a local HTTP socket + SSE for status/events.
+- **Dashboard** (`scout-dashboard`) proxies `/api` to the engine socket.
 
 ```mermaid
 flowchart LR
   CLI[CLI: scout] --> Start[start command]
-  Start -->|config| Connectors
+  Start --> Settings[.scout/settings.json]
+  Start --> Secrets[.scout/secrets.json]
+  Start --> Plugins[PluginManager]
+  Plugins --> Connectors[ConnectorRegistry]
+  Plugins --> Tools[ToolRegistry]
+  Plugins --> Inference[InferenceRegistry]
+  Plugins --> Images[ImageRegistry]
   Connectors -->|message| Sessions[SessionManager]
   Cron[CronScheduler] -->|message| Sessions
-  Start --> PM2[Pm2Runtime]
-  Start --> Containers[DockerRuntime]
-  Start --> Auth[.scout/auth.json]
-  Start --> Settings[.scout/settings.json]
-  Settings --> Inference[Inference client]
-  Sessions -->|handler| Echo[echo handler]
-  Echo -->|sendMessage| Connectors
-  CLI --> Logging[initLogging]
+  Sessions --> InferenceRouter
+  InferenceRouter --> Tools
+  Tools --> Connectors
+  Sessions --> Memory[MemoryEngine]
   Start --> Engine[Engine server]
+  Engine --> Dashboard[scout-dashboard /api proxy]
 ```
 
-## Message lifecycle (current)
-1. Connector emits a `ConnectorMessage` and `MessageContext`.
-2. `SessionManager` routes to a session (by source + channel or explicit sessionId).
-3. Session processes messages sequentially.
-4. Handler echoes the message back through the originating connector.
+## Message lifecycle
+1. Connector emits a `ConnectorMessage` (text + files).
+2. `SessionManager` routes to a session (source + channel or explicit sessionId).
+3. `EngineRuntime` builds a LLM context with attachments.
+4. Inference runs with tools (cron, memory, web search, image generation).
+5. Responses and generated files are sent back through the connector.
+6. Session state + memory are updated.

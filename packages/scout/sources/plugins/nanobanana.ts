@@ -1,0 +1,152 @@
+import type { Plugin } from "./types.js";
+import type { FileStore } from "../files/store.js";
+
+type NanobananaConfig = {
+  endpoint?: string;
+  model?: string;
+  size?: string;
+  apiKeyHeader?: string;
+  apiKeyPrefix?: string;
+};
+
+type NanobananaResponse = {
+  data?: Array<{
+    b64_json?: string;
+    base64?: string;
+    url?: string;
+    image?: string;
+  }>;
+  image?: string;
+  image_base64?: string;
+  output?: string;
+};
+
+export function createNanobananaPlugin(): Plugin {
+  return {
+    id: "nanobanana",
+    kind: "tool",
+    load: async (context) => {
+      context.registrar.registerImageProvider({
+        id: "nanobanana",
+        label: "Nanobanana Images",
+        generate: async (request, generationContext) => {
+          const config = (context.config.config ?? {}) as NanobananaConfig;
+          if (!config.endpoint) {
+            throw new Error("nanobanana endpoint missing in settings config");
+          }
+          const apiKey = await generationContext.secrets.get("nanobanana", "apiKey");
+          if (!apiKey) {
+            throw new Error("Missing nanobanana apiKey in secrets store");
+          }
+          const headers: Record<string, string> = {
+            "Content-Type": "application/json"
+          };
+          const headerName = config.apiKeyHeader ?? "Authorization";
+          const prefix = config.apiKeyPrefix ?? "Bearer ";
+          headers[headerName] = `${prefix}${apiKey}`;
+
+          const payload: Record<string, unknown> = {
+            prompt: request.prompt,
+            model: request.model ?? config.model,
+            size: request.size ?? config.size,
+            n: request.count ?? 1
+          };
+
+          const response = await fetch(config.endpoint, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload)
+          });
+          if (!response.ok) {
+            throw new Error(`Nanobanana image generation failed: ${response.status}`);
+          }
+          const data = (await response.json()) as NanobananaResponse;
+          const files = await extractImages(data, generationContext.fileStore);
+          return { files };
+        }
+      });
+    },
+    unload: async (context) => {
+      context.registrar.unregisterImageProvider("nanobanana");
+    }
+  };
+}
+
+async function extractImages(
+  data: NanobananaResponse,
+  fileStore: FileStore
+) {
+  const files = [];
+  const entries = data.data ?? [];
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    if (!entry) {
+      continue;
+    }
+    const base64 = entry.b64_json ?? entry.base64 ?? entry.image ?? null;
+    if (base64) {
+      const buffer = Buffer.from(base64, "base64");
+      const stored = await fileStore.saveBuffer({
+        name: `nanobanana-${Date.now()}-${index + 1}.png`,
+        mimeType: "image/png",
+        data: buffer,
+        source: "nanobanana"
+      });
+      files.push({
+        id: stored.id,
+        name: stored.name,
+        mimeType: stored.mimeType,
+        size: stored.size,
+        path: stored.path
+      });
+      continue;
+    }
+    if (entry.url) {
+      const downloaded = await fetch(entry.url);
+      if (!downloaded.ok) {
+        continue;
+      }
+      const contentType = downloaded.headers.get("content-type") ?? "image/png";
+      const buffer = Buffer.from(await downloaded.arrayBuffer());
+      const stored = await fileStore.saveBuffer({
+        name: `nanobanana-${Date.now()}-${index + 1}.png`,
+        mimeType: contentType,
+        data: buffer,
+        source: "nanobanana"
+      });
+      files.push({
+        id: stored.id,
+        name: stored.name,
+        mimeType: stored.mimeType,
+        size: stored.size,
+        path: stored.path
+      });
+    }
+  }
+
+  if (files.length === 0) {
+    const single =
+      data.image_base64 ??
+      data.image ??
+      data.output ??
+      null;
+    if (single) {
+      const buffer = Buffer.from(single, "base64");
+      const stored = await fileStore.saveBuffer({
+        name: `nanobanana-${Date.now()}-1.png`,
+        mimeType: "image/png",
+        data: buffer,
+        source: "nanobanana"
+      });
+      files.push({
+        id: stored.id,
+        name: stored.name,
+        mimeType: stored.mimeType,
+        size: stored.size,
+        path: stored.path
+      });
+    }
+  }
+
+  return files;
+}

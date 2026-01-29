@@ -1,16 +1,16 @@
 # Connectors
 
-Connectors are the interface between Scout and external systems.
-Scheduled work is handled by the cron runtime (see `cron.md`).
+Connectors are plugin modules that bridge Scout to external systems.
+They emit messages (text + files) into sessions and send responses back.
 
 ## Connector interface
 Each connector exposes:
 - `onMessage(handler)` to receive `ConnectorMessage` events.
-- `sendMessage(targetId, message)` to respond.
+- `sendMessage(targetId, message)` to respond (including files).
 
 Messages are normalized to:
 ```
-{ text: string | null }
+{ text: string | null, files?: FileReference[] }
 ```
 
 ```mermaid
@@ -22,6 +22,7 @@ classDiagram
   }
   class ConnectorMessage {
     +text: string | null
+    +files?: FileReference[]
   }
   class MessageContext {
     +channelId: string
@@ -31,15 +32,18 @@ classDiagram
 ```
 
 ## Telegram connector
+- Implemented as the `telegram` plugin.
 - Uses long polling by default.
-- Persists `lastUpdateId` to `.scout/telegram-offset.json` for resume.
-- Retries polling failures with exponential backoff and jitter.
-- Handles SIGINT/SIGTERM and stops polling cleanly.
+- Persists `lastUpdateId` to `.scout/telegram-offset.json`.
+- Downloads incoming files into the shared file store.
+- Sends images/documents when tool results include files.
 
 ```mermaid
 flowchart TD
   Start[TelegramConnector] --> Poll[Polling]
   Poll --> Msg[message event]
+  Msg --> Files[download files]
+  Files --> Store[FileStore]
   Msg --> Track[track update_id]
   Track --> Persist[persist offset]
   Poll -->|error| Retry[backoff + retry]

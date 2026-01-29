@@ -1,38 +1,40 @@
 # Configuration
 
-Scout reads config in two places when starting:
-1. `.scout/scout.config.json` (or the path passed to `scout start --config`).
-2. `.scout/auth.json` for connector/inference tokens.
-3. `.scout/settings.json` for agent configuration (provider + model).
-4. `.scout/telegram.json` as a legacy fallback for Telegram tokens.
+Scout now reads from a single settings file plus the secrets store.
+
+- `.scout/settings.json` (or the path passed to `scout start --settings`)
+- `.scout/secrets.json` for plugin secrets
 
 ```mermaid
 flowchart TD
-  Start[scout start] --> ConfigFile[.scout/scout.config.json]
-  Start --> Auth[.scout/auth.json]
-  Start --> Settings[.scout/settings.json]
-  ConfigFile -->|telegram missing| Fallback[.scout/telegram.json]
-  ConfigFile --> Connectors
-  Auth --> Connectors
+  Start[scout start] --> Settings[.scout/settings.json]
+  Start --> Secrets[.scout/secrets.json]
+  Settings --> Plugins
   Settings --> Inference
-  Fallback --> Connectors
+  Settings --> Cron
+  Settings --> Runtime
 ```
 
-## Sample `.scout/scout.config.json`
+## Sample `.scout/settings.json`
 ```json
 {
-  "connectors": {
-    "telegram": {
-      "token": "...",
-      "polling": true,
-      "statePath": ".scout/telegram-offset.json",
-      "retry": {
-        "minDelayMs": 1000,
-        "maxDelayMs": 30000,
-        "factor": 2,
-        "jitter": 0.2
-      }
-    }
+  "engine": {
+    "socketPath": ".scout/scout.sock",
+    "dataDir": ".scout"
+  },
+  "plugins": [
+    { "id": "telegram", "enabled": true, "config": { "polling": true } },
+    { "id": "brave-search", "enabled": true },
+    { "id": "gpt-image", "enabled": true },
+    { "id": "nanobanana", "enabled": false, "config": { "endpoint": "https://api.example.com/images" } },
+    { "id": "openai-codex", "enabled": true },
+    { "id": "anthropic", "enabled": true }
+  ],
+  "inference": {
+    "providers": [
+      { "id": "openai-codex", "model": "gpt-5.1-codex-mini" },
+      { "id": "anthropic", "model": "claude-3-7-sonnet-latest" }
+    ]
   },
   "cron": {
     "tasks": [
@@ -59,55 +61,30 @@ flowchart TD
       ]
     },
     "containers": {
-      "connection": {
-        "socketPath": "/var/run/docker.sock"
-      },
-      "containers": [
-        {
-          "name": "redis",
-          "action": "ensure-running"
-        }
-      ]
+      "connection": { "socketPath": "/var/run/docker.sock" },
+      "containers": [{ "name": "redis", "action": "ensure-running" }]
     }
+  },
+  "memory": {
+    "enabled": true,
+    "maxEntries": 1000
   }
 }
 ```
 
-Notes:
-- `cron` is the top-level config for scheduled tasks.
-- `runtime.pm2` configures PM2-managed processes.
-- `runtime.containers` manages Docker containers via the Engine API.
-- Agent priority is stored in `.scout/settings.json`.
-
-## `.scout/auth.json`
-Written by `scout add telegram`, `scout add codex`, and `scout add claude`.
+## `.scout/secrets.json`
+Secrets are stored per plugin id:
 
 ```json
 {
-  "telegram": { "token": "..." },
-  "codex": { "token": "..." },
-  "claude-code": { "token": "..." }
+  "version": 1,
+  "secrets": {
+    "telegram": { "token": "..." },
+    "brave-search": { "apiKey": "..." },
+    "openai-codex": { "apiKey": "..." },
+    "anthropic": { "apiKey": "..." },
+    "gpt-image": { "apiKey": "..." },
+    "nanobanana": { "apiKey": "..." }
+  }
 }
-```
-
-## `.scout/settings.json`
-Written by `scout add codex` and `scout add claude`.
-
-```json
-{
-  "agents": [
-    { "provider": "codex", "model": "gpt-5.1-codex-mini", "main": true },
-    { "provider": "claude-code", "model": "claude-3-7-sonnet-latest" }
-  ]
-}
-```
-
-Agent priority comes from the array order (last entry is lowest priority).
-Setting `main: true` moves the agent to the front and clears `main` on others.
-If a model id is missing or invalid, Scout uses the pi-ai model registry to pick a default.
-
-## `.scout/telegram.json` (legacy)
-Still read if no telegram token is found in `.scout/auth.json`.
-```json
-{ "token": "..." }
 ```

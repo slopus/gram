@@ -1,27 +1,9 @@
 import http from "node:http";
 import { promises as fs } from "node:fs";
 
-import { DEFAULT_AUTH_PATH, updateAuthFile } from "../auth.js";
-import {
-  DEFAULT_SETTINGS_PATH,
-  removeAgent,
-  updateSettingsFile,
-  upsertAgent
-} from "../settings.js";
-import {
-  applyClaudeCodeAuthUpdate,
-  applyCodexAuthUpdate,
-  applyTelegramAuthUpdate,
-  removeClaudeCodeAuth as stripClaudeCodeAuth,
-  removeCodexAuth as stripCodexAuth,
-  removeTelegramAuth as stripTelegramAuth,
-  type ClaudeCodeAuthUpdate,
-  type CodexAuthUpdate
-} from "./auth.js";
-import {
-  resolveEngineSocketPath,
-  resolveRemoteEngineUrl
-} from "./socket.js";
+import { DEFAULT_SETTINGS_PATH, updateSettingsFile, upsertPlugin } from "../settings.js";
+import { DEFAULT_SECRETS_PATH, SecretsStore } from "../secrets/store.js";
+import { resolveEngineSocketPath, resolveRemoteEngineUrl } from "./socket.js";
 
 export type EngineWriteResult = {
   mode: "file" | "socket";
@@ -35,152 +17,56 @@ export type EngineClientOptions = {
 
 const DEFAULT_TIMEOUT_MS = 1500;
 
-export async function saveTelegramAuth(
-  token: string,
-  options: EngineClientOptions = {}
-): Promise<EngineWriteResult> {
-  return writeEngineMutation({
-    options,
-    endpoint: "/v1/engine/auth/telegram",
-    method: "POST",
-    payload: { token },
-    applyLocal: async () => {
-      await updateAuthFile(DEFAULT_AUTH_PATH, (auth) =>
-        applyTelegramAuthUpdate(auth, token)
-      );
-    }
-  });
-}
-
-export async function removeTelegramAuth(
-  options: EngineClientOptions = {}
-): Promise<EngineWriteResult> {
-  return writeEngineMutation({
-    options,
-    endpoint: "/v1/engine/auth/telegram",
-    method: "DELETE",
-    applyLocal: async () => {
-      await updateAuthFile(DEFAULT_AUTH_PATH, (auth) =>
-        stripTelegramAuth(auth)
-      );
-    }
-  });
-}
-
-export async function saveCodexAuth(
-  update: CodexAuthUpdate,
-  options: EngineClientOptions = {}
-): Promise<EngineWriteResult> {
-  return writeEngineMutation({
-    options,
-    endpoint: "/v1/engine/auth/codex",
-    method: "POST",
-    payload: update,
-    applyLocal: async () => {
-      await updateAuthFile(DEFAULT_AUTH_PATH, (auth) =>
-        applyCodexAuthUpdate(auth, update)
-      );
-      await updateSettingsFile(DEFAULT_SETTINGS_PATH, (settings) => ({
-        ...settings,
-        agents: upsertAgent(
-          settings.agents,
-          { provider: "codex", model: update.model },
-          update.main
-        )
-      }));
-    }
-  });
-}
-
-export async function removeCodexAuth(
-  options: EngineClientOptions = {}
-): Promise<EngineWriteResult> {
-  return writeEngineMutation({
-    options,
-    endpoint: "/v1/engine/auth/codex",
-    method: "DELETE",
-    applyLocal: async () => {
-      await updateAuthFile(DEFAULT_AUTH_PATH, (auth) =>
-        stripCodexAuth(auth)
-      );
-      await updateSettingsFile(DEFAULT_SETTINGS_PATH, (settings) => ({
-        ...settings,
-        agents: removeAgent(settings.agents, "codex")
-      }));
-    }
-  });
-}
-
-export async function saveClaudeCodeAuth(
-  update: ClaudeCodeAuthUpdate,
-  options: EngineClientOptions = {}
-): Promise<EngineWriteResult> {
-  return writeEngineMutation({
-    options,
-    endpoint: "/v1/engine/auth/claude-code",
-    method: "POST",
-    payload: update,
-    applyLocal: async () => {
-      await updateAuthFile(DEFAULT_AUTH_PATH, (auth) =>
-        applyClaudeCodeAuthUpdate(auth, update)
-      );
-      await updateSettingsFile(DEFAULT_SETTINGS_PATH, (settings) => ({
-        ...settings,
-        agents: upsertAgent(
-          settings.agents,
-          { provider: "claude-code", model: update.model },
-          update.main
-        )
-      }));
-    }
-  });
-}
-
-export async function removeClaudeCodeAuth(
-  options: EngineClientOptions = {}
-): Promise<EngineWriteResult> {
-  return writeEngineMutation({
-    options,
-    endpoint: "/v1/engine/auth/claude-code",
-    method: "DELETE",
-    applyLocal: async () => {
-      await updateAuthFile(DEFAULT_AUTH_PATH, (auth) =>
-        stripClaudeCodeAuth(auth)
-      );
-      await updateSettingsFile(DEFAULT_SETTINGS_PATH, (settings) => ({
-        ...settings,
-        agents: removeAgent(settings.agents, "claude-code")
-      }));
-    }
-  });
-}
-
-export async function loadConnector(
+export async function loadPlugin(
   id: string,
   options: EngineClientOptions = {}
 ): Promise<EngineWriteResult> {
   return writeEngineMutation({
     options,
-    endpoint: "/v1/engine/connectors/load",
+    endpoint: "/v1/engine/plugins/load",
     method: "POST",
     payload: { id },
     applyLocal: async () => {
-      throw new Error("Connector load requires a running engine");
+      await updateSettingsFile(DEFAULT_SETTINGS_PATH, (settings) => ({
+        ...settings,
+        plugins: upsertPlugin(settings.plugins, { id, enabled: true })
+      }));
     }
   });
 }
 
-export async function unloadConnector(
+export async function unloadPlugin(
   id: string,
   options: EngineClientOptions = {}
 ): Promise<EngineWriteResult> {
   return writeEngineMutation({
     options,
-    endpoint: "/v1/engine/connectors/unload",
+    endpoint: "/v1/engine/plugins/unload",
     method: "POST",
     payload: { id },
     applyLocal: async () => {
-      throw new Error("Connector unload requires a running engine");
+      await updateSettingsFile(DEFAULT_SETTINGS_PATH, (settings) => ({
+        ...settings,
+        plugins: upsertPlugin(settings.plugins, { id, enabled: false })
+      }));
+    }
+  });
+}
+
+export async function setSecret(
+  pluginId: string,
+  key: string,
+  value: string,
+  options: EngineClientOptions = {}
+): Promise<EngineWriteResult> {
+  return writeEngineMutation({
+    options,
+    endpoint: "/v1/engine/secrets",
+    method: "POST",
+    payload: { pluginId, key, value },
+    applyLocal: async () => {
+      const store = new SecretsStore(DEFAULT_SECRETS_PATH);
+      await store.set(pluginId, key, value);
     }
   });
 }

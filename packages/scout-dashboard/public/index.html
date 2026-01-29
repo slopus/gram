@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Scout Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="backdrop"></div>
+    <header class="hero">
+      <div class="hero__content">
+        <p class="hero__eyebrow">Scout Dashboard</p>
+        <h1>Engine pulse, memory, and flow.</h1>
+        <p class="hero__sub">
+          Live status for plugins, sessions, and cron tasks — straight from the local engine socket.
+        </p>
+        <div class="hero__actions">
+          <button id="refresh" class="btn">Refresh</button>
+          <span id="connection" class="badge">Connecting…</span>
+        </div>
+      </div>
+      <div class="hero__panel">
+        <div class="panel">
+          <h3>Engine</h3>
+          <div id="status-summary" class="panel__value">–</div>
+          <p id="status-detail" class="panel__meta">Awaiting status</p>
+        </div>
+        <div class="panel">
+          <h3>Sessions</h3>
+          <div id="session-count" class="panel__value">0</div>
+          <p class="panel__meta">Active threads</p>
+        </div>
+      </div>
+    </header>
+
+    <main id="app" class="layout">
+      <section class="card" id="plugins-card">
+        <div class="card__header">
+          <h2>Plugins</h2>
+          <p>Loaded modules and their current state.</p>
+        </div>
+        <div id="plugins" class="grid"></div>
+      </section>
+
+      <section class="card" id="connectors-card">
+        <div class="card__header">
+          <h2>Connectors</h2>
+          <p>Active connector endpoints.</p>
+        </div>
+        <div id="connectors" class="grid"></div>
+      </section>
+
+      <section class="card" id="inference-card">
+        <div class="card__header">
+          <h2>Inference</h2>
+          <p>LLM providers in rotation.</p>
+        </div>
+        <div id="inference" class="grid"></div>
+      </section>
+
+      <section class="card" id="image-card">
+        <div class="card__header">
+          <h2>Image Generation</h2>
+          <p>Available image providers.</p>
+        </div>
+        <div id="images" class="grid"></div>
+      </section>
+
+      <section class="card" id="tools-card">
+        <div class="card__header">
+          <h2>Tools</h2>
+          <p>Runtime tool inventory.</p>
+        </div>
+        <div id="tools" class="grid"></div>
+      </section>
+
+      <section class="card" id="cron-card">
+        <div class="card__header">
+          <h2>Cron Tasks</h2>
+          <p>Scheduled work from the engine.</p>
+        </div>
+        <div id="cron" class="list"></div>
+      </section>
+
+      <section class="card" id="sessions-card">
+        <div class="card__header">
+          <h2>Sessions</h2>
+          <p>Recent conversation threads.</p>
+        </div>
+        <div id="sessions" class="list"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

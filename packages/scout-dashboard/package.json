@@ -1,0 +1,12 @@
+{
+  "name": "scout-dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "node server/dev.js",
+    "start": "node server/server.js",
+    "test": "echo \"No tests for scout-dashboard\""
+  }
+}

@@ -16,5 +16,5 @@ yarn typecheck
 ```
 
 ## Notes
-- Single workspace package: `packages/scout`
+- Workspace packages: `packages/scout`, `packages/scout-dashboard`
 - Tests use `*.spec.ts`

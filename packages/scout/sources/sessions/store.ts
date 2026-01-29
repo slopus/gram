@@ -4,8 +4,9 @@ import path from "node:path";
 import { createId } from "@paralleldrive/cuid2";
 
 import type { MessageContext } from "../connectors/types.js";
+import type { FileReference } from "../files/types.js";
 import type { Session } from "./session.js";
-import type { SessionMessage } from "./types.js";
+import type { SessionMessage, SessionSummary } from "./types.js";
 
 export type SessionLogEntry<State = Record<string, unknown>> =
   | {
@@ -24,6 +25,7 @@ export type SessionLogEntry<State = Record<string, unknown>> =
       messageId: string;
       context: MessageContext;
       text: string | null;
+      files?: FileReference[];
       receivedAt: string;
     }
   | {
@@ -34,6 +36,7 @@ export type SessionLogEntry<State = Record<string, unknown>> =
       messageId: string;
       context: MessageContext;
       text: string | null;
+      files?: FileReference[];
       sentAt: string;
     }
   | {
@@ -105,6 +108,7 @@ export class SessionStore<State = Record<string, unknown>> {
       messageId: message.id,
       context: message.context,
       text: message.message.text,
+      files: message.message.files,
       receivedAt: message.receivedAt.toISOString()
     };
     await this.appendEntry(session.storageId, entry);
@@ -115,7 +119,8 @@ export class SessionStore<State = Record<string, unknown>> {
     messageId: string,
     source: string,
     context: MessageContext,
-    text: string | null
+    text: string | null,
+    files?: FileReference[]
   ): Promise<void> {
     const entry: SessionLogEntry<State> = {
       type: "outgoing",
@@ -125,6 +130,7 @@ export class SessionStore<State = Record<string, unknown>> {
       messageId,
       context,
       text,
+      files,
       sentAt: new Date().toISOString()
     };
     await this.appendEntry(session.storageId, entry);
@@ -245,6 +251,57 @@ export class SessionStore<State = Record<string, unknown>> {
     }
 
     return restored;
+  }
+
+  async listSessions(): Promise<SessionSummary[]> {
+    const restored = await this.loadSessions();
+    return Promise.all(
+      restored.map(async (session) => {
+        const entries = await this.readSessionEntries(session.storageId);
+        const lastEntry = entries
+          .filter((entry) => entry.type === "incoming" || entry.type === "outgoing")
+          .slice(-1)[0];
+        const lastMessage =
+          lastEntry && "text" in lastEntry ? lastEntry.text : undefined;
+        const lastFiles =
+          lastEntry && "files" in lastEntry ? lastEntry.files : undefined;
+        return {
+          sessionId: session.sessionId,
+          storageId: session.storageId,
+          source: session.source,
+          context: session.context,
+          createdAt: session.createdAt,
+          updatedAt: session.updatedAt,
+          lastMessage,
+          lastFiles
+        };
+      })
+    );
+  }
+
+  async readSessionEntries(storageId: string): Promise<SessionLogEntry<State>[]> {
+    const filePath = path.join(this.basePath, `${storageId}.jsonl`);
+    let raw = "";
+    try {
+      raw = await fs.readFile(filePath, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        return [];
+      }
+      throw error;
+    }
+
+    return raw
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          return JSON.parse(line) as SessionLogEntry<State>;
+        } catch {
+          return null;
+        }
+      })
+      .filter((entry): entry is SessionLogEntry<State> => Boolean(entry));
   }
 
   private async appendEntry(

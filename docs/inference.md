@@ -1,62 +1,49 @@
 # Inference runtime
 
-Scout ships an inference helper for Codex and Claude Code via `@mariozechner/pi-ai`.
+Inference is now a plugin capability. Providers register with the `InferenceRegistry`,
+and the `InferenceRouter` selects them based on `.scout/settings.json`.
 
-## Exports
-- `connectCodex({ model, token? })`
-- `connectClaudeCode({ model, token? })`
-
-Each returns an `InferenceClient` with:
-- `complete(context, options?)`
-- `stream(context, options?)`
+## Providers
+Configured in settings:
+```json
+{
+  "inference": {
+    "providers": [
+      { "id": "openai-codex", "model": "gpt-5.1-codex-mini" },
+      { "id": "anthropic", "model": "claude-3-7-sonnet-latest" }
+    ]
+  }
+}
+```
 
 ## Tools
-Scout attaches tool definitions to the inference context and handles tool calls
-before sending a final reply.
-
-Current tools:
-- `add_cron` schedules a cron task that sends a message back to the active chat.
-
-## Agent priority
-Inference agents are read from `.scout/settings.json` under `agents`.
-Order is preserved (last added is last), with `main: true` moved to the front.
-
-When handling a session message:
-- Scout tries agents in priority order.
-- It only falls back if a provider fails before inference starts (e.g., missing token or invalid model).
-- If inference has already started and fails, Scout stops and reports the error.
-- If the configured model id is missing or invalid, Scout picks a default from the pi-ai model registry
-  (prefers `*-latest`, otherwise the first model in the registry).
-
-## Tool calls
-Scout exposes tool calls to inference providers.
-Currently supported tool:
-- `add_cron` schedules a cron task and can immediately respond with a tool result.
+Tools are registered dynamically by plugins and core runtime:
+- `add_cron` schedules a cron task.
+- `memory_search` queries the memory engine.
+- `web_search` (Brave) performs web search.
+- `generate_image` uses registered image providers.
 
 ```mermaid
 sequenceDiagram
   participant Model
   participant Engine
-  participant Cron
-  Model->>Engine: toolCall add_cron
-  Engine->>Cron: addTask
-  Cron-->>Engine: task id
+  participant Tool
+  Model->>Engine: toolCall
+  Engine->>Tool: execute
+  Tool-->>Engine: toolResult (+ files)
   Engine-->>Model: toolResult
 ```
 
 ```mermaid
 sequenceDiagram
-  participant Caller
+  participant Engine
   participant Settings
-  participant Auth
-  participant PiAI
+  participant Secrets
+  participant Inference
   participant Tools
-  Caller->>Settings: read .scout/settings.json
-  Caller->>Auth: read .scout/auth.json (if token missing)
-  Auth-->>Caller: token
-  Caller->>PiAI: getModel(provider, model)
-  Caller->>PiAI: complete/stream(context + tools)
-  PiAI-->>Tools: tool call(s) (optional)
-  Tools-->>PiAI: tool result(s)
-  Caller->>PiAI: continue inference
+  Engine->>Settings: read providers
+  Engine->>Secrets: read apiKey
+  Engine->>Inference: complete(context + tools)
+  Inference-->>Tools: tool call(s)
+  Tools-->>Inference: tool result(s)
 ```

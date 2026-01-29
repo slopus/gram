@@ -7,31 +7,35 @@ sequenceDiagram
   participant Connector
   participant SessionManager
   participant Session
-  participant Handler
+  participant Engine
   Connector->>SessionManager: handleMessage(source, message, context)
   SessionManager->>Session: enqueue(message)
-  SessionManager->>Handler: process queue sequentially
-  Handler-->>SessionManager: done
+  SessionManager->>Engine: process queue sequentially
+  Engine-->>SessionManager: done
 ```
 
 ## Session rules
 - Session id defaults to `${source}:${channelId}`.
 - A connector can override with `context.sessionId`.
-- Messages are queued and processed in order.
-
-## Session logs
-Scout emits session lifecycle logs during `start`:
-- `Session created` when a new session is created.
-- `Session updated` when a message is enqueued.
-- `Session processing started` / `Session processing completed` around each message.
-- `Inference started` / `Inference completed` (or `Inference failed`) when inference runs.
+- Messages (and files) are queued and processed in order.
 
 ## Session persistence
 - Sessions are written to `.scout/sessions/<cuid2>.jsonl` as append-only logs.
 - Entries include `session_created`, `incoming`, `outgoing`, and `state` snapshots.
-- On startup, scout restores sessions from disk. If the last logged entry was `incoming`,
-  it sends an `Internal error.` reply to the channel to close out the pending message.
+- `incoming`/`outgoing` entries now store `files` when present.
+
+## Memory integration
+Session updates are mirrored into the memory engine.
+
+```mermaid
+flowchart TD
+  Incoming[Session incoming] --> Store[SessionStore]
+  Incoming --> Memory[MemoryEngine]
+  Outgoing[Session outgoing] --> Store
+  Outgoing --> Memory
+```
 
 ## Key types
 - `SessionMessage` stores message, context, and timestamps.
 - `SessionContext` holds mutable per-session state.
+- `FileReference` links attachments in the file store.
