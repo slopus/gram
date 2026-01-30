@@ -9,12 +9,12 @@ import { AuthStore } from "../../auth/store.js";
 import type { PluginApi } from "./types.js";
 import type { PluginRegistrar } from "./registry.js";
 
-import { plugin as openaiCodex } from "../../plugins/providers/openai-codex/index.js";
-import { plugin as anthropic } from "../../plugins/providers/anthropic/index.js";
-import { plugin as braveSearch } from "../../plugins/brave-search/index.js";
-import { plugin as gptImage } from "../../plugins/gpt-image/index.js";
-import { plugin as nanobanana } from "../../plugins/nanobanana/index.js";
-import { plugin as telegram } from "../../plugins/telegram/index.js";
+import { plugin as openaiCodex } from "../../plugins/providers/openai-codex/plugin.js";
+import { plugin as anthropic } from "../../plugins/providers/anthropic/plugin.js";
+import { plugin as braveSearch } from "../../plugins/brave-search/plugin.js";
+import { plugin as gptImage } from "../../plugins/gpt-image/plugin.js";
+import { plugin as nanobanana } from "../../plugins/nanobanana/plugin.js";
+import { plugin as telegram } from "../../plugins/telegram/plugin.js";
 
 const tempRoots: string[] = [];
 

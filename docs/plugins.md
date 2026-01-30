@@ -12,7 +12,7 @@ isolation, so module caches and globals are shared across plugin instances.
 Treat plugins as trusted code.
 
 ## Plugin protocol
-Each plugin type is described by a JSON descriptor (`descriptor.json` in the
+Each plugin type is described by a JSON descriptor (`plugin.json` in the
 plugin folder) and a module that exports a
 `plugin` object (or default export) with:
 - `settingsSchema` (Zod) to validate instance settings
@@ -39,7 +39,7 @@ Load/unload is internal: the plugin manager reconciles enabled instances from
   "id": "telegram",
   "name": "Telegram",
   "description": "Telegram connector and incoming message adapter.",
-  "entry": "./index.js"
+  "entry": "./plugin.js"
 }
 ```
 

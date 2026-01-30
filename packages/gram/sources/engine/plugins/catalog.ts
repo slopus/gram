@@ -21,7 +21,7 @@ function collectDescriptorFiles(root: string): string[] {
       results.push(...collectDescriptorFiles(path.join(root, entry.name)));
       continue;
     }
-    if (entry.isFile() && entry.name === "descriptor.json") {
+    if (entry.isFile() && entry.name === "plugin.json") {
       results.push(path.join(root, entry.name));
     }
   }

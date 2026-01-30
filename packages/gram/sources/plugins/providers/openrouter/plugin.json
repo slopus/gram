@@ -1,0 +1,6 @@
+{
+  "id": "openrouter",
+  "name": "OpenRouter",
+  "description": "OpenRouter inference provider.",
+  "entry": "./plugin.js"
+}

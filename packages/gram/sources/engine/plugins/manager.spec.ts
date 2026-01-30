@@ -57,7 +57,7 @@ function createManager(
           entry: entryPath
         },
         entryPath,
-        descriptorPath: path.join(rootDir, "descriptor.json"),
+        descriptorPath: path.join(rootDir, "plugin.json"),
         pluginDir: path.dirname(entryPath)
       }
     ]
