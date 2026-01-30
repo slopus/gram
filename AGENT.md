@@ -26,6 +26,11 @@
 - Aim to keep files under ~700 LOC; guideline only (not a hard guardrail). Split/refactor when it improves clarity or testability.
 - Naming: use **Gram** for product/app/docs headings; use `gram` for CLI command, package/binary, paths, and config keys.
 
+## Plugin vs monolith
+- If it is something contained - new inference provider, new API, memory engine. It should be a plugin.
+- If it is requiring for coordinating multiple plugins or agents - it is part of the monilith. Cron is needed to everyone. Heartbeat too. Some event bus. Working with file system, sandboxing - it is part of the monolith code.
+- Plugins are contained exclusively in a single folder (with subfolders)
+
 ## Agent-Specific Notes
 - Never edit `node_modules` (global/Homebrew/npm/git installs too). Updates overwrite. Skill notes go in `tools.md` or `AGENTS.md`.
 - When working on a GitHub Issue or PR, print the full URL at the end of the task.
