@@ -37,6 +37,26 @@ type BraveSearchResponse = {
 
 export const plugin = definePlugin({
   settingsSchema,
+  onboarding: async (api) => {
+    const apiKey = await api.prompt.input({
+      message: "Brave Search API key"
+    });
+    if (!apiKey) {
+      return null;
+    }
+    await api.auth.setApiKey(api.instanceId, apiKey);
+
+    const toolName = await api.prompt.input({
+      message: "Tool name (optional, default web_search)"
+    });
+    if (toolName === null) {
+      return null;
+    }
+
+    return {
+      settings: toolName ? { toolName } : {}
+    };
+  },
   create: (api) => {
     const toolName = api.settings.toolName ?? "web_search";
     const instanceId = api.instance.instanceId;

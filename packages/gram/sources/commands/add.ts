@@ -1,15 +1,27 @@
 import path from "node:path";
 
 import { confirm, input, select } from "@inquirer/prompts";
+import { createId } from "@paralleldrive/cuid2";
 import { getModels, getOAuthProvider, type OAuthProviderId } from "@mariozechner/pi-ai";
 
 import { AuthStore } from "../auth/store.js";
+import { ConnectorRegistry } from "../connectors/registry.js";
+import { FileStore } from "../files/store.js";
+import { ImageGenerationRegistry } from "../images/registry.js";
+import { InferenceRegistry } from "../inference/registry.js";
+import { ToolRegistry } from "../tools/registry.js";
+import { PluginManager } from "../plugins/manager.js";
+import { buildPluginCatalog } from "../plugins/catalog.js";
+import { PluginEventQueue } from "../plugins/events.js";
+import { PluginRegistry } from "../plugins/registry.js";
+import { PluginModuleLoader } from "../plugins/loader.js";
 import {
   DEFAULT_SETTINGS_PATH,
   readSettingsFile,
   updateSettingsFile,
   upsertPlugin,
-  type InferenceProviderSettings
+  type InferenceProviderSettings,
+  type PluginInstanceSettings
 } from "../settings.js";
 import { PROVIDER_DEFINITIONS, type ProviderDefinition } from "../plugins/providers.js";
 
@@ -25,6 +37,33 @@ export async function addCommand(options: AddOptions): Promise<void> {
   const dataDir = path.resolve(settings.engine?.dataDir ?? ".scout");
   const authStore = new AuthStore(path.join(dataDir, "auth.json"));
 
+  const addTarget = await promptValue(
+    select({
+      message: "What do you want to add?",
+      choices: [
+        { value: "provider", name: "Inference provider" },
+        { value: "plugin", name: "Plugin" }
+      ]
+    })
+  );
+
+  if (addTarget === null) {
+    outro("Cancelled.");
+    return;
+  }
+
+  if (addTarget === "plugin") {
+    await addPlugin(settingsPath, settings, dataDir, authStore);
+    return;
+  }
+
+  await addProvider(settingsPath, authStore);
+}
+
+async function addProvider(
+  settingsPath: string,
+  authStore: AuthStore
+): Promise<void> {
   const providers = PROVIDER_DEFINITIONS.map((provider) => ({
     ...provider,
     description: provider.label
@@ -115,6 +154,104 @@ export async function addCommand(options: AddOptions): Promise<void> {
   });
 
   outro(`Added ${provider.label}. Restart the engine to apply changes.`);
+}
+
+async function addPlugin(
+  settingsPath: string,
+  settings: Awaited<ReturnType<typeof readSettingsFile>>,
+  dataDir: string,
+  authStore: AuthStore
+): Promise<void> {
+  const catalog = buildPluginCatalog();
+  const providerIds = new Set(PROVIDER_DEFINITIONS.map((provider) => provider.id));
+  const plugins = Array.from(catalog.values()).filter(
+    (entry) => !providerIds.has(entry.descriptor.id)
+  );
+
+  if (plugins.length === 0) {
+    outro("No plugins available.");
+    return;
+  }
+
+  const pluginId = await promptValue(
+    select({
+      message: "Select a plugin",
+      choices: plugins.map((entry) => ({
+        value: entry.descriptor.id,
+        name: entry.descriptor.name,
+        description: entry.descriptor.description
+      }))
+    })
+  );
+
+  if (pluginId === null) {
+    outro("Cancelled.");
+    return;
+  }
+
+  const definition = catalog.get(pluginId);
+  if (!definition) {
+    outro("Unknown plugin selection.");
+    return;
+  }
+
+  const instanceId = createId();
+  let settingsConfig: Record<string, unknown> = {};
+
+  const loader = new PluginModuleLoader(`onboarding:${instanceId}`);
+  const { module } = await loader.load(definition.entryPath);
+  if (module.onboarding) {
+    const prompts = createPromptHelpers();
+    const result = await module.onboarding({
+      instanceId,
+      pluginId,
+      auth: authStore,
+      prompt: prompts,
+      note
+    });
+    if (result === null) {
+      outro("Cancelled.");
+      return;
+    }
+    settingsConfig = result.settings ?? {};
+  } else {
+    note("No onboarding flow provided; using default settings.", "Plugin");
+  }
+
+  try {
+    await validatePluginLoad(
+      settings,
+      dataDir,
+      authStore,
+      {
+        instanceId,
+        pluginId,
+        enabled: true,
+        settings: settingsConfig
+      }
+    );
+  } catch (error) {
+    outro(`Plugin failed to load: ${(error as Error).message}`);
+    return;
+  }
+
+  await updateSettingsFile(settingsPath, (current) => {
+    const nextSettings =
+      Object.keys(settingsConfig).length > 0 ? settingsConfig : undefined;
+    return {
+      ...current,
+      plugins: upsertPlugin(current.plugins, {
+        instanceId,
+        pluginId,
+        enabled: true,
+        settings: nextSettings
+      })
+    };
+  });
+
+  outro(
+    `Added ${definition.descriptor.name} (${instanceId}). Restart the engine to apply changes.`
+  );
 }
 
 async function configureAuth(provider: ProviderDefinition, authStore: AuthStore): Promise<void> {
@@ -369,6 +506,54 @@ async function promptValue<T>(promise: Promise<T>): Promise<T | null> {
       return null;
     }
     throw error;
+  }
+}
+
+function createPromptHelpers() {
+  return {
+    input: (config: Parameters<typeof input>[0]) => promptValue(input(config)),
+    confirm: (config: Parameters<typeof confirm>[0]) => promptValue(confirm(config)),
+    select: <TValue extends string>(config: Parameters<typeof select<TValue>>[0]) =>
+      promptValue(select(config))
+  };
+}
+
+async function validatePluginLoad(
+  settings: Awaited<ReturnType<typeof readSettingsFile>>,
+  dataDir: string,
+  authStore: AuthStore,
+  pluginConfig: PluginInstanceSettings
+): Promise<void> {
+  const connectorRegistry = new ConnectorRegistry({
+    onMessage: async () => undefined,
+    onFatal: () => undefined
+  });
+  const inferenceRegistry = new InferenceRegistry();
+  const imageRegistry = new ImageGenerationRegistry();
+  const toolRegistry = new ToolRegistry();
+  const pluginRegistry = new PluginRegistry(
+    connectorRegistry,
+    inferenceRegistry,
+    imageRegistry,
+    toolRegistry
+  );
+  const pluginEventQueue = new PluginEventQueue();
+  const fileStore = new FileStore({ basePath: `${dataDir}/files` });
+  const pluginManager = new PluginManager({
+    settings,
+    registry: pluginRegistry,
+    auth: authStore,
+    fileStore,
+    pluginCatalog: buildPluginCatalog(),
+    dataDir,
+    eventQueue: pluginEventQueue
+  });
+
+  await pluginManager.load(pluginConfig);
+  try {
+    await pluginManager.unload(pluginConfig.instanceId);
+  } catch (error) {
+    note(`Plugin validation unload failed: ${(error as Error).message}`, "Plugin");
   }
 }
 

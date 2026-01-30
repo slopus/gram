@@ -19,6 +19,54 @@ const settingsSchema = z
 
 export const plugin = definePlugin({
   settingsSchema,
+  onboarding: async (api) => {
+    const apiKey = await api.prompt.input({
+      message: "OpenAI API key"
+    });
+    if (!apiKey) {
+      return null;
+    }
+    await api.auth.setApiKey(api.instanceId, apiKey);
+
+    const model = await api.prompt.input({
+      message: "Model (optional, default gpt-image-1)"
+    });
+    if (model === null) {
+      return null;
+    }
+
+    const size = await api.prompt.input({
+      message: "Image size (optional, e.g. 1024x1024)"
+    });
+    if (size === null) {
+      return null;
+    }
+
+    const quality = await api.prompt.select({
+      message: "Quality",
+      choices: [
+        { value: "__default__", name: "Default" },
+        { value: "standard", name: "Standard" },
+        { value: "hd", name: "HD" }
+      ]
+    });
+    if (quality === null) {
+      return null;
+    }
+
+    const settings: Record<string, unknown> = {};
+    if (model) {
+      settings.model = model;
+    }
+    if (size) {
+      settings.size = size;
+    }
+    if (quality !== "__default__") {
+      settings.quality = quality;
+    }
+
+    return { settings };
+  },
   create: (api) => {
     const providerId = api.instance.instanceId;
     return {

@@ -27,6 +27,66 @@ const settingsSchema = z
 
 export const plugin = definePlugin({
   settingsSchema,
+  onboarding: async (api) => {
+    const endpoint = await api.prompt.input({
+      message: "Nanobanana endpoint URL"
+    });
+    if (!endpoint) {
+      return null;
+    }
+
+    const apiKey = await api.prompt.input({
+      message: "Nanobanana API key"
+    });
+    if (!apiKey) {
+      return null;
+    }
+    await api.auth.setApiKey(api.instanceId, apiKey);
+
+    const model = await api.prompt.input({
+      message: "Model (optional)"
+    });
+    if (model === null) {
+      return null;
+    }
+
+    const size = await api.prompt.input({
+      message: "Image size (optional)"
+    });
+    if (size === null) {
+      return null;
+    }
+
+    const apiKeyHeader = await api.prompt.input({
+      message: "API key header (optional, default Authorization)"
+    });
+    if (apiKeyHeader === null) {
+      return null;
+    }
+
+    const apiKeyPrefix = await api.prompt.input({
+      message: "API key prefix (optional, default \"Bearer \")"
+    });
+    if (apiKeyPrefix === null) {
+      return null;
+    }
+
+    const settings: Record<string, unknown> = { endpoint };
+    if (model) {
+      settings.model = model;
+    }
+    if (size) {
+      settings.size = size;
+    }
+    if (apiKeyHeader) {
+      settings.apiKeyHeader = apiKeyHeader;
+    }
+    if (apiKeyPrefix) {
+      settings.apiKeyPrefix = apiKeyPrefix;
+    }
+
+    return { settings };
+  },
   create: (api) => {
     const providerId = api.instance.instanceId;
     return {

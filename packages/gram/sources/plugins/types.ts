@@ -26,9 +26,52 @@ export type PluginInstance = {
   unload?: () => Promise<void>;
 };
 
+export type PromptChoice<TValue extends string> = {
+  value: TValue;
+  name: string;
+  description?: string;
+};
+
+export type PromptSelectConfig<TValue extends string> = {
+  message: string;
+  choices: Array<PromptChoice<TValue>>;
+};
+
+export type PromptInputConfig = {
+  message: string;
+  default?: string;
+  placeholder?: string;
+};
+
+export type PromptConfirmConfig = {
+  message: string;
+  default?: boolean;
+};
+
+export type PluginPrompt = {
+  input: (config: PromptInputConfig) => Promise<string | null>;
+  confirm: (config: PromptConfirmConfig) => Promise<boolean | null>;
+  select: <TValue extends string>(
+    config: PromptSelectConfig<TValue>
+  ) => Promise<TValue | null>;
+};
+
+export type PluginOnboardingApi = {
+  instanceId: string;
+  pluginId: string;
+  auth: AuthStore;
+  prompt: PluginPrompt;
+  note: (message: string, title?: string) => void;
+};
+
+export type PluginOnboardingResult = {
+  settings?: Record<string, unknown>;
+};
+
 export type PluginModule<TSettings = unknown> = {
   settingsSchema: ZodType<TSettings>;
   create: (api: PluginApi<TSettings>) => PluginInstance | Promise<PluginInstance>;
+  onboarding?: (api: PluginOnboardingApi) => Promise<PluginOnboardingResult | null>;
 };
 
 export function definePlugin<TSettings>(

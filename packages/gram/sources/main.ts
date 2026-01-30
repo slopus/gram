@@ -5,6 +5,7 @@ import { initLogging } from "./log.js";
 import { loadPluginCommand, unloadPluginCommand } from "./commands/plugins.js";
 import { setAuthCommand } from "./commands/auth.js";
 import { addCommand } from "./commands/add.js";
+import { removeCommand } from "./commands/remove.js";
 
 const program = new Command();
 
@@ -32,13 +33,23 @@ program
 
 program
   .command("add")
-  .description("Add an inference provider")
+  .description("Add an inference provider or plugin")
   .option(
     "-s, --settings <path>",
     "Path to settings file",
     ".scout/settings.json"
   )
   .action(addCommand);
+
+program
+  .command("remove")
+  .description("Remove an inference provider or plugin")
+  .option(
+    "-s, --settings <path>",
+    "Path to settings file",
+    ".scout/settings.json"
+  )
+  .action(removeCommand);
 
 const pluginCommand = program.command("plugins").description("Manage plugins");
 
