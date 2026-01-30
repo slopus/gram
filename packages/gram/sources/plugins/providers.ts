@@ -18,6 +18,13 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     label: "Azure OpenAI (Responses)",
     auth: "apiKey",
     kind: "pi-ai"
+  },
+  {
+    id: "openai-compatible",
+    label: "OpenAI-compatible",
+    auth: "apiKey",
+    kind: "openai-compatible",
+    optionalApiKey: true
   }
 ];
 
