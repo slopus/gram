@@ -1,7 +1,6 @@
 import path from "node:path";
 
-import { intro, outro, note } from "@clack/prompts";
-import { confirm, input, password, select } from "@inquirer/prompts";
+import { confirm, input, select } from "@inquirer/prompts";
 import { getModels, getOAuthProvider, type OAuthProviderId } from "@mariozechner/pi-ai";
 
 import { AuthStore } from "../auth/store.js";
@@ -41,7 +40,11 @@ export async function addCommand(options: AddOptions): Promise<void> {
           ? "OAuth"
           : provider.auth === "none"
             ? "No API key"
-            : "API key"
+            : provider.auth === "mixed"
+              ? "API key or OAuth"
+              : provider.optionalApiKey
+                ? "API key (optional)"
+                : "API key"
       }))
     })
   );
@@ -140,13 +143,22 @@ async function configureAuth(provider: ProviderDefinition, authStore: AuthStore)
     }
   }
 
-  const apiKey = await promptValue<string>(
-    password({
-      message: `${provider.label} API key`
+  const apiKey = await promptValue(
+    input({
+      message: provider.optionalApiKey
+        ? `${provider.label} API key (optional)`
+        : `${provider.label} API key`
     })
   );
 
+  if (apiKey === null) {
+    throw new Error("Cancelled");
+  }
+
   if (!apiKey) {
+    if (provider.optionalApiKey) {
+      return;
+    }
     throw new Error("Cancelled");
   }
 
@@ -364,4 +376,20 @@ function cleanOptions(options: Record<string, unknown>): Record<string, unknown>
   return Object.fromEntries(
     Object.entries(options).filter(([, value]) => value !== undefined && value !== "")
   );
+}
+
+function intro(message: string): void {
+  console.log(message);
+}
+
+function outro(message: string): void {
+  console.log(message);
+}
+
+function note(message: string, title?: string): void {
+  if (title) {
+    console.log(`${title}: ${message}`);
+    return;
+  }
+  console.log(message);
 }

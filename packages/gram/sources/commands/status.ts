@@ -1,5 +1,4 @@
 import http from "node:http";
-import { intro, outro } from "@clack/prompts";
 
 import { resolveEngineSocketPath } from "../engine/socket.js";
 
@@ -54,4 +53,12 @@ function requestSocket(socketPath: string, path: string): Promise<SocketResponse
 
     request.end();
   });
+}
+
+function intro(message: string): void {
+  console.log(message);
+}
+
+function outro(message: string): void {
+  console.log(message);
 }

@@ -12,56 +12,51 @@ import {
 import { z } from "zod";
 
 import type { AuthStore } from "../auth/store.js";
+import { getProviderDefinition, type ProviderDefinition } from "./providers.js";
 import { definePlugin } from "./types.js";
 
-export type PiAiProviderSpec = {
-  id: string;
-  label: string;
-  auth: "apiKey" | "oauth" | "mixed" | "none";
-};
+const settingsSchema = z.object({}).passthrough();
 
-export function createPiAiProviderPlugin(spec: PiAiProviderSpec) {
-  return definePlugin({
-    settingsSchema: z.object({}).passthrough(),
-    create: (api) => {
-      const providerId = api.instance.instanceId;
-      return {
-        load: async () => {
-          api.registrar.registerInferenceProvider({
-            id: providerId,
-            label: spec.label,
-            createClient: async (options) => {
-              const modelId = resolveModelId(spec.id, options.model);
-              const model = getModel(spec.id as never, modelId as never);
-              if (!model) {
-                throw new Error(`Unknown ${spec.id} model: ${modelId}`);
-              }
-              const apiKey = await resolveApiKey(spec, options.auth);
-              return {
-                modelId: model.id,
-                complete: (ctx, runtimeOptions) =>
-                  complete(
-                    model as Model<Api>,
-                    ctx,
-                    buildOptions(apiKey, options.config, runtimeOptions)
-                  ),
-                stream: (ctx, runtimeOptions) =>
-                  stream(
-                    model as Model<Api>,
-                    ctx,
-                    buildOptions(apiKey, options.config, runtimeOptions)
-                  )
-              };
-            }
-          });
-        },
-        unload: async () => {
-          api.registrar.unregisterInferenceProvider(providerId);
-        }
-      };
+export const plugin = definePlugin({
+  settingsSchema,
+  create: (api) => {
+    const providerId = api.instance.instanceId;
+    const provider = getProviderDefinition(providerId);
+    if (!provider) {
+      throw new Error(`Unknown provider: ${providerId}`);
     }
-  });
-}
+    if (provider.kind !== "pi-ai") {
+      throw new Error(`Provider ${providerId} is not a pi-ai provider`);
+    }
+
+    return {
+      load: async () => {
+        api.registrar.registerInferenceProvider({
+          id: provider.id,
+          label: provider.label,
+          createClient: async (options) => {
+            const modelId = resolveModelId(provider.id, options.model);
+            const model = getModel(provider.id as never, modelId as never);
+            if (!model) {
+              throw new Error(`Unknown ${provider.id} model: ${modelId}`);
+            }
+            const apiKey = await resolveApiKey(provider, options.auth);
+            return {
+              modelId: model.id,
+              complete: (ctx, runtimeOptions) =>
+                complete(model as Model<Api>, ctx, buildOptions(apiKey, options.config, runtimeOptions)),
+              stream: (ctx, runtimeOptions) =>
+                stream(model as Model<Api>, ctx, buildOptions(apiKey, options.config, runtimeOptions))
+            };
+          }
+        });
+      },
+      unload: async () => {
+        api.registrar.unregisterInferenceProvider(provider.id);
+      }
+    };
+  }
+});
 
 function resolveModelId(providerId: string, preferred?: string): string {
   const models = getModels(providerId as never);
@@ -98,39 +93,39 @@ function buildOptions(
 }
 
 async function resolveApiKey(
-  spec: PiAiProviderSpec,
+  provider: ProviderDefinition,
   auth: AuthStore
 ): Promise<string | null> {
-  if (spec.auth === "none") {
+  if (provider.auth === "none") {
     return null;
   }
 
   const config = await auth.read();
-  const entry = config[spec.id] ?? null;
-  const needsOAuth = spec.auth === "oauth";
-  const allowOAuth = spec.auth === "oauth" || spec.auth === "mixed";
+  const entry = config[provider.id] ?? null;
+  const needsOAuth = provider.auth === "oauth";
+  const allowOAuth = provider.auth === "oauth" || provider.auth === "mixed";
 
   if (allowOAuth && entry?.type === "oauth") {
     const credentials = stripOAuth(entry);
-    const result = await getOAuthApiKey(spec.id as OAuthProviderId, {
-      [spec.id]: credentials
+    const result = await getOAuthApiKey(provider.id as OAuthProviderId, {
+      [provider.id]: credentials
     });
     if (!result) {
       if (needsOAuth) {
-        throw new Error(`Missing OAuth credentials for ${spec.id}`);
+        throw new Error(`Missing OAuth credentials for ${provider.id}`);
       }
       return null;
     }
-    await auth.setOAuth(spec.id, result.newCredentials as unknown as Record<string, unknown>);
+    await auth.setOAuth(provider.id, result.newCredentials as unknown as Record<string, unknown>);
     return result.apiKey;
   }
 
   const apiKey = entry?.apiKey ?? null;
   if (!apiKey && needsOAuth) {
-    throw new Error(`Missing OAuth credentials for ${spec.id}`);
+    throw new Error(`Missing OAuth credentials for ${provider.id}`);
   }
-  if (!apiKey && spec.auth === "apiKey") {
-    throw new Error(`Missing ${spec.id} apiKey in auth store`);
+  if (!apiKey && provider.auth === "apiKey") {
+    throw new Error(`Missing ${provider.id} apiKey in auth store`);
   }
   return apiKey;
 }

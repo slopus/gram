@@ -33,7 +33,7 @@ export const plugin = definePlugin({
       load: async () => {
         api.registrar.registerInferenceProvider({
           id: providerId,
-          label: "OpenAI-compatible",
+          label: providerId,
           createClient: async (options) => {
             const config = (options.config ?? {}) as OpenAiCompatibleConfig;
             const modelId = options.model ?? config.modelId ?? null;
