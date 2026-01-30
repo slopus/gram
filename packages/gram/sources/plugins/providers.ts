@@ -25,7 +25,8 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     auth: "apiKey",
     kind: "openai-compatible",
     optionalApiKey: true
-  }
+  },
+  { id: "openrouter", label: "OpenRouter", auth: "apiKey", kind: "pi-ai" }
 ];
 
 export function getProviderDefinition(id: string): ProviderDefinition | null {
