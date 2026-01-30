@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { FileStore } from "../files/store.js";
 import { getLogger } from "../log.js";
-import { SecretsStore } from "../secrets/store.js";
+import { AuthStore } from "../auth/store.js";
 import type { PluginApi } from "./types.js";
 import type { PluginRegistrar } from "./registry.js";
 
@@ -44,15 +44,15 @@ async function createApi<TSettings>(
   registrar: PluginRegistrar,
   dir: string
 ): Promise<PluginApi<TSettings>> {
-  const secretsPath = path.join(dir, "secrets.json");
-  const secrets = new SecretsStore(secretsPath);
+  const authPath = path.join(dir, "auth.json");
+  const auth = new AuthStore(authPath);
   const fileStore = new FileStore({ basePath: path.join(dir, "files") });
   return {
     instance: { instanceId, pluginId, enabled: true },
     settings,
     engineSettings: {},
     logger: getLogger(`test.${instanceId}`),
-    secrets,
+    auth,
     dataDir: dir,
     registrar,
     fileStore,

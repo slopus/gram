@@ -10,7 +10,7 @@ import { InferenceRegistry } from "../inference/registry.js";
 import { PluginEventQueue } from "./events.js";
 import { PluginManager } from "./manager.js";
 import { PluginRegistry } from "./registry.js";
-import { SecretsStore } from "../secrets/store.js";
+import { AuthStore } from "../auth/store.js";
 import type { PluginInstanceSettings } from "../settings.js";
 import { ToolRegistry } from "../tools/registry.js";
 
@@ -46,8 +46,8 @@ function createManager(
     imageRegistry,
     toolRegistry
   );
-  const secretsPath = path.join(rootDir, "secrets.json");
-  const secrets = new SecretsStore(secretsPath);
+  const authPath = path.join(rootDir, "auth.json");
+  const auth = new AuthStore(authPath);
   const fileStore = new FileStore({ basePath: path.join(rootDir, "files") });
   const catalog = new Map([
     [
@@ -67,7 +67,7 @@ function createManager(
   return new PluginManager({
     settings: {},
     registry: pluginRegistry,
-    secrets,
+    auth,
     fileStore,
     pluginCatalog: catalog,
     dataDir: rootDir,

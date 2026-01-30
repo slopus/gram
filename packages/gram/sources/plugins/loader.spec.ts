@@ -60,7 +60,7 @@ export const plugin = {
       settings,
       engineSettings: {},
       logger: console as never,
-      secrets: {} as never,
+      auth: {} as never,
       dataDir: dir,
       registrar: {} as never,
       fileStore: {} as never,

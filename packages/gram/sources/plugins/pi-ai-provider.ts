@@ -9,9 +9,10 @@ import {
   type OAuthCredentials,
   type OAuthProviderId
 } from "@mariozechner/pi-ai";
+import { z } from "zod";
 
 import type { AuthStore } from "../auth/store.js";
-import type { Plugin } from "./types.js";
+import { definePlugin } from "./types.js";
 
 export type PiAiProviderSpec = {
   id: string;
@@ -19,35 +20,47 @@ export type PiAiProviderSpec = {
   auth: "apiKey" | "oauth" | "mixed" | "none";
 };
 
-export function createPiAiProviderPlugin(spec: PiAiProviderSpec): Plugin {
-  return {
-    id: spec.id,
-    kind: "inference",
-    load: async (context) => {
-      context.registrar.registerInferenceProvider({
-        id: spec.id,
-        label: spec.label,
-        createClient: async (options) => {
-          const modelId = resolveModelId(spec.id, options.model);
-          const model = getModel(spec.id as never, modelId as never);
-          if (!model) {
-            throw new Error(`Unknown ${spec.id} model: ${modelId}`);
-          }
-          const apiKey = await resolveApiKey(spec, options.auth);
-          return {
-            modelId: model.id,
-            complete: (ctx, runtimeOptions) =>
-              complete(model as Model<Api>, ctx, buildOptions(apiKey, options.config, runtimeOptions)),
-            stream: (ctx, runtimeOptions) =>
-              stream(model as Model<Api>, ctx, buildOptions(apiKey, options.config, runtimeOptions))
-          };
+export function createPiAiProviderPlugin(spec: PiAiProviderSpec) {
+  return definePlugin({
+    settingsSchema: z.object({}).passthrough(),
+    create: (api) => {
+      const providerId = api.instance.instanceId;
+      return {
+        load: async () => {
+          api.registrar.registerInferenceProvider({
+            id: providerId,
+            label: spec.label,
+            createClient: async (options) => {
+              const modelId = resolveModelId(spec.id, options.model);
+              const model = getModel(spec.id as never, modelId as never);
+              if (!model) {
+                throw new Error(`Unknown ${spec.id} model: ${modelId}`);
+              }
+              const apiKey = await resolveApiKey(spec, options.auth);
+              return {
+                modelId: model.id,
+                complete: (ctx, runtimeOptions) =>
+                  complete(
+                    model as Model<Api>,
+                    ctx,
+                    buildOptions(apiKey, options.config, runtimeOptions)
+                  ),
+                stream: (ctx, runtimeOptions) =>
+                  stream(
+                    model as Model<Api>,
+                    ctx,
+                    buildOptions(apiKey, options.config, runtimeOptions)
+                  )
+              };
+            }
+          });
+        },
+        unload: async () => {
+          api.registrar.unregisterInferenceProvider(providerId);
         }
-      });
-    },
-    unload: async (context) => {
-      context.registrar.unregisterInferenceProvider(spec.id);
+      };
     }
-  };
+  });
 }
 
 function resolveModelId(providerId: string, preferred?: string): string {

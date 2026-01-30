@@ -31,7 +31,7 @@ export async function addCommand(options: AddOptions): Promise<void> {
     description: provider.label
   }));
 
-  const providerId = await promptValue(
+  const providerId = await promptValue<string>(
     select({
       message: "Select an inference provider",
       choices: providers.map((provider) => ({
@@ -76,7 +76,7 @@ export async function addCommand(options: AddOptions): Promise<void> {
     return;
   }
 
-  const setMain = await promptValue(
+  const setMain = await promptValue<boolean>(
     confirm({
       message: "Make this the primary inference provider?",
       default: false
@@ -99,7 +99,11 @@ export async function addCommand(options: AddOptions): Promise<void> {
     const nextProviders = setMain ? [updatedProvider, ...filtered] : [...filtered, updatedProvider];
     return {
       ...current,
-      plugins: upsertPlugin(current.plugins, { id: provider.id, enabled: true }),
+      plugins: upsertPlugin(current.plugins, {
+        instanceId: provider.id,
+        pluginId: provider.id,
+        enabled: true
+      }),
       inference: {
         ...(current.inference ?? {}),
         providers: nextProviders
@@ -119,7 +123,7 @@ async function configureAuth(provider: ProviderDefinition, authStore: AuthStore)
   if (provider.auth === "oauth" || provider.auth === "mixed") {
     const wantsOAuth = provider.auth === "oauth"
       ? true
-      : await promptValue(
+      : await promptValue<boolean>(
           confirm({
             message: "Use OAuth instead of an API key?",
             default: false
@@ -136,7 +140,7 @@ async function configureAuth(provider: ProviderDefinition, authStore: AuthStore)
     }
   }
 
-  const apiKey = await promptValue(
+  const apiKey = await promptValue<string>(
     password({
       message: `${provider.label} API key`
     })
@@ -160,14 +164,14 @@ async function loginOAuth(provider: ProviderDefinition, authStore: AuthStore): P
       note(`${info.url}${info.instructions ? `\n${info.instructions}` : ""}`, "Open this URL");
     },
     onPrompt: async (prompt) => {
-      const value = await promptValue(
+      const value = await promptValue<string>(
         input({
           message: prompt.placeholder
             ? `${prompt.message} (${prompt.placeholder})`
             : prompt.message
         })
       );
-      if (value === null) {
+      if (!value) {
         throw new Error("Cancelled");
       }
       return value;
@@ -182,7 +186,7 @@ async function loginOAuth(provider: ProviderDefinition, authStore: AuthStore): P
 
 async function selectModel(provider: ProviderDefinition): Promise<string | null> {
   if (provider.kind === "openai-compatible") {
-    const modelId = await promptValue(
+    const modelId = await promptValue<string>(
       input({
         message: "Model id (e.g. llama-3.1-8b)"
       })
@@ -201,7 +205,7 @@ async function selectModel(provider: ProviderDefinition): Promise<string | null>
   }));
   options.push({ value: "__custom__", name: "Enter custom model id", description: "" });
 
-  const selected = await promptValue(
+  const selected = await promptValue<string>(
     select({
       message: "Select model",
       choices: options
@@ -213,7 +217,7 @@ async function selectModel(provider: ProviderDefinition): Promise<string | null>
   }
 
   if (selected === "__custom__") {
-    const custom = await promptValue(
+    const custom = await promptValue<string>(
       input({ message: "Custom model id" })
     );
     if (!custom) {
@@ -230,7 +234,7 @@ async function collectProviderOptions(
 ): Promise<Record<string, unknown> | null> {
   switch (provider.id) {
     case "azure-openai-responses": {
-      const azureBaseUrl = await promptValue(
+      const azureBaseUrl = await promptValue<string>(
         input({
           message: "Azure OpenAI base URL (optional, e.g. https://<resource>.openai.azure.com)"
         })
@@ -238,7 +242,7 @@ async function collectProviderOptions(
       if (azureBaseUrl === null) {
         return null;
       }
-      const azureResourceName = await promptValue(
+      const azureResourceName = await promptValue<string>(
         input({
           message: "Azure resource name (optional, e.g. my-azure-openai)"
         })
@@ -246,7 +250,7 @@ async function collectProviderOptions(
       if (azureResourceName === null) {
         return null;
       }
-      const azureApiVersion = await promptValue(
+      const azureApiVersion = await promptValue<string>(
         input({
           message: "Azure API version (optional, e.g. v1)"
         })
@@ -254,7 +258,7 @@ async function collectProviderOptions(
       if (azureApiVersion === null) {
         return null;
       }
-      const azureDeploymentName = await promptValue(
+      const azureDeploymentName = await promptValue<string>(
         input({
           message: "Azure deployment name (optional, e.g. gpt-4o-mini)"
         })
@@ -270,7 +274,7 @@ async function collectProviderOptions(
       });
     }
     case "google-vertex": {
-      const project = await promptValue(
+      const project = await promptValue<string>(
         input({
           message: "Google Cloud project id (optional)"
         })
@@ -278,7 +282,7 @@ async function collectProviderOptions(
       if (project === null) {
         return null;
       }
-      const location = await promptValue(
+      const location = await promptValue<string>(
         input({
           message: "Vertex AI location (optional, e.g. us-central1)"
         })
@@ -292,7 +296,7 @@ async function collectProviderOptions(
       });
     }
     case "amazon-bedrock": {
-      const region = await promptValue(
+      const region = await promptValue<string>(
         input({
           message: "AWS region (optional, e.g. us-east-1)"
         })
@@ -300,7 +304,7 @@ async function collectProviderOptions(
       if (region === null) {
         return null;
       }
-      const profile = await promptValue(
+      const profile = await promptValue<string>(
         input({
           message: "AWS profile (optional, e.g. default)"
         })
@@ -314,7 +318,7 @@ async function collectProviderOptions(
       });
     }
     case "openai-compatible": {
-      const baseUrl = await promptValue(
+      const baseUrl = await promptValue<string>(
         input({
           message: "OpenAI-compatible base URL (e.g. http://localhost:11434/v1)"
         })
@@ -322,7 +326,7 @@ async function collectProviderOptions(
       if (!baseUrl) {
         return null;
       }
-      const api = await promptValue(
+      const api = await promptValue<string>(
         select({
           message: "API type",
           choices: [
