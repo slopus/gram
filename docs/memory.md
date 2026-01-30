@@ -1,15 +1,14 @@
-# Memory engine
+# Memory plugin
 
-The memory engine records session updates and supports keyword queries.
+The memory plugin records session updates and supports keyword queries.
 
-- Stored in `.scout/memory/memory.jsonl`.
+- Stored in `.scout/memory/memory.jsonl` (default).
 - Each entry includes session id, role, text, and file references.
 - Memory can read session logs via the session store API.
 
 ```mermaid
 flowchart LR
-  Sessions[Session updates] --> Memory[MemoryEngine]
+  Sessions[Session updates] --> Memory[Memory plugin]
   Memory --> Search[memory_search tool]
   Memory --> API[GET /v1/engine/memory/search]
-  Memory --> SessionsAPI[SessionStore read entries]
 ```

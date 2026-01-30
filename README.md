@@ -6,7 +6,7 @@ A minimal, composable AI agent framework with plugin-driven architecture.
 
 - **Plugin system** - Connectors, inference providers, tools, and image generators as plugins
 - **Session management** - Per-channel message sequencing with persistent state
-- **Memory engine** - Searchable conversation history across sessions
+- **Memory plugin** - Searchable conversation history across sessions
 - **Cron scheduler** - Timed message dispatch and scheduled actions
 - **Multi-provider inference** - Anthropic Claude, OpenAI, and more
 - **Dashboard** - React SPA for monitoring and control
@@ -15,16 +15,16 @@ A minimal, composable AI agent framework with plugin-driven architecture.
 
 ```mermaid
 flowchart LR
-  CLI[gram CLI] --> Engine[Engine Runtime]
+  CLI[gram CLI] --> Engine[Engine]
   Engine --> Plugins[Plugin Manager]
   Plugins --> Connectors[Connectors]
   Plugins --> Inference[Inference Providers]
-  Plugins --> Tools[Tool Registry]
+  Plugins --> Tools[Tool Resolver]
   Connectors -->|message| Sessions[Session Manager]
   Cron[Cron Scheduler] -->|message| Sessions
   Sessions --> InferenceRouter[Inference Router]
   InferenceRouter --> Tools
-  Sessions --> Memory[Memory Engine]
+  Sessions --> Memory[Memory Plugin]
   Engine --> Socket[HTTP Socket API]
   Socket --> Dashboard[gram-dashboard]
 ```
@@ -51,8 +51,9 @@ Grambot uses two configuration files in `.scout/`:
 {
   "engine": { "socketPath": ".scout/scout.sock", "dataDir": ".scout" },
   "plugins": [
-    { "id": "telegram", "enabled": true },
-    { "id": "anthropic", "enabled": true }
+    { "instanceId": "telegram", "pluginId": "telegram", "enabled": true },
+    { "instanceId": "anthropic", "pluginId": "anthropic", "enabled": true },
+    { "instanceId": "memory", "pluginId": "memory", "enabled": true }
   ],
   "inference": {
     "providers": [{ "id": "anthropic", "model": "claude-sonnet-4-20250514" }]
@@ -77,13 +78,14 @@ Grambot uses two configuration files in `.scout/`:
 | brave-search | Tool | Web search integration |
 | gpt-image | Image | OpenAI image generation |
 | nanobanana | Image | Alternative image provider |
+| memory | Tool | Conversation memory and search |
 
 ## Tools
 
 The AI agent has access to these tools:
 
 - `add_cron` - Schedule recurring tasks
-- `memory_search` - Query conversation history
+- `memory_search` - Query conversation history (memory plugin)
 - `web_search` - Search the web (Brave)
 - `generate_image` - Create images
 - `set_reaction` - React to messages
@@ -93,7 +95,7 @@ The AI agent has access to these tools:
 ```sh
 gram start                    # Launch the engine
 gram status                   # Check engine status
-gram add                      # Add an inference provider
+gram add                      # Add a provider or plugin
 gram plugins load <id>        # Load a plugin
 gram plugins unload <id>      # Unload a plugin
 gram auth set <id> <key> <value>         # Store a credential
@@ -121,7 +123,7 @@ See [docs/](./docs/) for detailed documentation:
 - [Architecture](./docs/architecture.md) - System overview
 - [Plugins](./docs/plugins.md) - Plugin system
 - [Sessions](./docs/sessions.md) - Session management
-- [Memory](./docs/memory.md) - Memory engine
+- [Memory](./docs/memory.md) - Memory plugin
 - [Cron](./docs/cron.md) - Scheduled tasks
 - [Config](./docs/config.md) - Configuration reference
 - [CLI](./docs/cli.md) - Command reference

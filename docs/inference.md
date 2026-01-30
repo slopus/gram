@@ -28,7 +28,7 @@ flowchart LR
 ## Tools
 Tools are registered dynamically by plugins and core runtime:
 - `add_cron` schedules a cron task.
-- `memory_search` queries the memory engine.
+- `memory_search` queries the memory plugin.
 - `web_search` (Brave) performs web search.
 - `generate_image` uses registered image providers.
 - `set_reaction` sets connector reactions (Telegram).

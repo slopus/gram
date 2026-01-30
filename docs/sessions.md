@@ -25,12 +25,12 @@ sequenceDiagram
 - `incoming`/`outgoing` entries now store `files` when present.
 
 ## Memory integration
-Session updates are mirrored into the memory engine.
+Session updates are mirrored into the memory plugin (if enabled).
 
 ```mermaid
 flowchart TD
   Incoming[Session incoming] --> Store[SessionStore]
-  Incoming --> Memory[MemoryEngine]
+  Incoming --> Memory[Memory plugin]
   Outgoing[Session outgoing] --> Store
   Outgoing --> Memory
 ```

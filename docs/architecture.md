@@ -8,7 +8,7 @@ Key pieces:
 - **Auth store** (`.scout/auth.json`) holds provider credentials.
 - **File store** persists attachments for connectors and tools.
 - **Session manager** serializes handling per session and persists state.
-- **Memory engine** records session updates and supports queries.
+- **Memory plugin** records session updates and supports queries.
 - **Cron scheduler** emits timed messages into sessions.
 - **Inference router** picks providers from settings.
 - **Engine server** exposes a local HTTP socket + SSE for status/events.
@@ -21,7 +21,7 @@ flowchart LR
   Start --> Auth[.scout/auth.json]
   Start --> Plugins[PluginManager]
   Plugins --> Connectors[ConnectorRegistry]
-  Plugins --> Tools[ToolRegistry]
+  Plugins --> Tools[ToolResolver]
   Plugins --> Inference[InferenceRegistry]
   Plugins --> Images[ImageRegistry]
   Connectors -->|message| Sessions[SessionManager]
@@ -29,7 +29,7 @@ flowchart LR
   Sessions --> InferenceRouter
   InferenceRouter --> Tools
   Tools --> Connectors
-  Sessions --> Memory[MemoryEngine]
+  Sessions --> Memory[Memory plugin]
   Start --> Engine[Engine server]
   Engine --> Dashboard[gram-dashboard /api proxy]
 ```
@@ -37,7 +37,7 @@ flowchart LR
 ## Message lifecycle
 1. Connector emits a `ConnectorMessage` (text + files).
 2. `SessionManager` routes to a session (source + channel or explicit sessionId).
-3. `EngineRuntime` builds a LLM context with attachments.
+3. `Engine` builds a LLM context with attachments.
 4. Inference runs with tools (cron, memory, web search, image generation).
 5. Responses and generated files are sent back through the connector.
 6. Session state + memory are updated.

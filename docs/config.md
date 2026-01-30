@@ -27,7 +27,8 @@ flowchart TD
     { "instanceId": "gpt-image", "pluginId": "gpt-image", "enabled": true },
     { "instanceId": "nanobanana", "pluginId": "nanobanana", "enabled": false, "settings": { "endpoint": "https://api.example.com/images" } },
     { "instanceId": "openai-codex", "pluginId": "openai-codex", "enabled": true },
-    { "instanceId": "anthropic", "pluginId": "anthropic", "enabled": false }
+    { "instanceId": "anthropic", "pluginId": "anthropic", "enabled": false },
+    { "instanceId": "memory", "pluginId": "memory", "enabled": true }
   ],
   "inference": {
     "providers": [
@@ -53,6 +54,8 @@ flowchart TD
   }
 }
 ```
+
+`memory` settings are consumed by the memory plugin (if enabled).
 
 ## `.scout/auth.json`
 Credentials are stored per plugin instance id:
