@@ -43,7 +43,8 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   { id: "google-gemini-cli", label: "Google Gemini CLI", auth: "oauth", kind: "pi-ai" },
   { id: "google-antigravity", label: "Antigravity", auth: "oauth", kind: "pi-ai" },
   { id: "minimax", label: "MiniMax", auth: "apiKey", kind: "pi-ai" },
-  { id: "cerebras", label: "Cerebras", auth: "apiKey", kind: "pi-ai" }
+  { id: "cerebras", label: "Cerebras", auth: "apiKey", kind: "pi-ai" },
+  { id: "kimi-coding", label: "Kimi For Coding", auth: "apiKey", kind: "pi-ai" }
 ];
 
 export function getProviderDefinition(id: string): ProviderDefinition | null {
