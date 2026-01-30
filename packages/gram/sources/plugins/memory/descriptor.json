@@ -1,0 +1,6 @@
+{
+  "id": "memory",
+  "name": "Memory",
+  "description": "Conversation memory storage and search.",
+  "entry": "./index.js"
+}

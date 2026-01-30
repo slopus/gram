@@ -77,12 +77,12 @@ export async function startEngineServer(
 
   app.get("/v1/engine/memory/search", async (request, reply) => {
     const query = (request.query as { query?: string }).query ?? "";
-    const memory = options.runtime.getMemoryEngine();
-    if (!memory) {
-      return reply.status(400).send({ error: "Memory engine unavailable" });
+    const result = await options.runtime.executeTool("memory_search", { query });
+    if (result.toolMessage.isError) {
+      return reply.status(400).send({ error: "Memory tool unavailable" });
     }
-    const results = await memory.query(query);
-    return reply.send({ ok: true, results });
+    const details = result.toolMessage.details as { entries?: unknown[] } | undefined;
+    return reply.send({ ok: true, results: details?.entries ?? [] });
   });
 
   app.get("/v1/engine/plugins", async (_request, reply) => {

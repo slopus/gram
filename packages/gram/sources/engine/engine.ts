@@ -13,7 +13,6 @@ import type { ConnectorMessage, MessageContext } from "./connectors/types.js";
 import { FileStore } from "../files/store.js";
 import type { FileReference } from "../files/types.js";
 import { InferenceRouter } from "./inference/router.js";
-import { MemoryEngine } from "./memory/engine.js";
 import { PluginRegistry } from "./plugins/registry.js";
 import { PluginEventEngine } from "./plugins/event-engine.js";
 import { PluginEventQueue } from "./plugins/events.js";
@@ -23,12 +22,13 @@ import type { SettingsConfig } from "../settings.js";
 import { listInferenceProviders } from "../settings.js";
 import { SessionManager } from "./sessions/manager.js";
 import { SessionStore } from "./sessions/store.js";
+import { Session } from "./sessions/session.js";
 import type { SessionMessage } from "./sessions/types.js";
 import { AuthStore } from "../auth/store.js";
 import { buildCronTool } from "./tools/cron.js";
-import { buildMemoryTool } from "./tools/memory.js";
 import { buildImageGenerationTool } from "./tools/image-generation.js";
 import { buildReactionTool } from "./tools/reaction.js";
+import type { ToolExecutionResult } from "./tools/types.js";
 import { CronScheduler } from "../modules/runtime/cron.js";
 import { EngineEventBus } from "./ipc/events.js";
 
@@ -61,7 +61,6 @@ export class Engine {
   private pluginEventEngine: PluginEventEngine;
   private sessionStore: SessionStore<SessionState>;
   private sessionManager: SessionManager<SessionState>;
-  private memoryEngine: MemoryEngine | null;
   private cron: CronScheduler | null = null;
   private inferenceRouter: InferenceRouter;
   private eventBus: EngineEventBus;
@@ -106,21 +105,13 @@ export class Engine {
       fileStore: this.fileStore,
       pluginCatalog: buildPluginCatalog(),
       dataDir: this.dataDir,
-      eventQueue: this.pluginEventQueue
+      eventQueue: this.pluginEventQueue,
+      engineEvents: this.eventBus
     });
 
     this.sessionStore = new SessionStore<SessionState>({
       basePath: `${this.dataDir}/sessions`
     });
-
-    this.memoryEngine =
-      this.settings.memory?.enabled === false
-        ? null
-        : new MemoryEngine({
-            basePath: `${this.dataDir}/memory`,
-            maxEntries: this.settings.memory?.maxEntries,
-            sessionStore: this.sessionStore as SessionStore
-          });
 
     this.sessionManager = new SessionManager<SessionState>({
       createState: () => ({ context: { messages: [] } }),
@@ -162,17 +153,16 @@ export class Engine {
             "Session persistence failed"
           );
         });
-        void this.memoryEngine?.record({
-          sessionId: session.id,
-          source,
-          role: "user",
-          text: entry.message.text,
-          files: entry.message.files
-        });
         this.eventBus.emit("session.updated", {
           sessionId: session.id,
           source,
-          messageId: entry.id
+          messageId: entry.id,
+          entry: {
+            id: entry.id,
+            message: entry.message,
+            context: entry.context,
+            receivedAt: entry.receivedAt
+          }
         });
       },
       onMessageStart: (session, entry, source) => {
@@ -253,7 +243,6 @@ export class Engine {
         this.eventBus.emit("cron.task.added", { task });
       })
     );
-    this.toolResolver.register("core", buildMemoryTool(this.memoryEngine));
     this.toolResolver.register("core", buildImageGenerationTool(this.imageRegistry));
     this.toolResolver.register("core", buildReactionTool());
 
@@ -296,10 +285,6 @@ export class Engine {
     return this.sessionStore;
   }
 
-  getMemoryEngine(): MemoryEngine | null {
-    return this.memoryEngine;
-  }
-
   getPluginManager(): PluginManager {
     return this.pluginManager;
   }
@@ -322,6 +307,48 @@ export class Engine {
 
   getInferenceRouter(): InferenceRouter {
     return this.inferenceRouter;
+  }
+
+  async executeTool(
+    name: string,
+    args: Record<string, unknown>,
+    messageContext?: MessageContext
+  ): Promise<ToolExecutionResult> {
+    const toolCall: ToolCall = {
+      id: createId(),
+      name,
+      type: "toolCall",
+      arguments: args
+    };
+    const now = new Date();
+    const sessionId = messageContext?.sessionId ?? `system:${name}`;
+    const session = new Session<SessionState>(
+      sessionId,
+      {
+        id: sessionId,
+        createdAt: now,
+        updatedAt: now,
+        state: { context: { messages: [] } }
+      },
+      createId()
+    );
+    const context: MessageContext =
+      messageContext ?? {
+        channelId: sessionId,
+        userId: null,
+        sessionId
+      };
+
+    return this.toolResolver.execute(toolCall, {
+      connectorRegistry: this.connectorRegistry,
+      fileStore: this.fileStore,
+      auth: this.authStore,
+      logger,
+      assistant: this.settings.assistant ?? null,
+      session,
+      source: "system",
+      messageContext: context
+    });
   }
 
 
@@ -454,7 +481,6 @@ export class Engine {
           const toolResult = await this.toolResolver.execute(toolCall, {
             connectorRegistry: this.connectorRegistry,
             fileStore: this.fileStore,
-            memory: this.memoryEngine,
             auth: this.authStore,
             logger,
             assistant: this.settings.assistant ?? null,
@@ -513,12 +539,14 @@ export class Engine {
         files: generatedFiles.length > 0 ? generatedFiles : undefined
       });
       await recordOutgoingEntry(this.sessionStore, session, source, entry.context, outgoingText, generatedFiles);
-      await this.memoryEngine?.record({
+      this.eventBus.emit("session.outgoing", {
         sessionId: session.id,
         source,
-        role: "assistant",
-        text: outgoingText,
-        files: generatedFiles
+        message: {
+          text: outgoingText,
+          files: generatedFiles.length > 0 ? generatedFiles : undefined
+        },
+        context: entry.context
       });
     } catch (error) {
       logger.warn({ connector: source, error }, "Failed to send response");

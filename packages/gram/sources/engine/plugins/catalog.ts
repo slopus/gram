@@ -9,11 +9,24 @@ export type PluginDefinition = {
   entryPath: string;
 };
 
-const descriptorsDir = fileURLToPath(new URL("./descriptors", import.meta.url));
-const descriptorFiles = fs
-  .readdirSync(descriptorsDir)
-  .filter((file) => file.endsWith(".json"))
-  .map((file) => path.join(descriptorsDir, file));
+const pluginsDir = fileURLToPath(new URL("../../plugins", import.meta.url));
+
+function collectDescriptorFiles(root: string): string[] {
+  const entries = fs.readdirSync(root, { withFileTypes: true });
+  const results: string[] = [];
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      results.push(...collectDescriptorFiles(path.join(root, entry.name)));
+      continue;
+    }
+    if (entry.isFile() && entry.name === "descriptor.json") {
+      results.push(path.join(root, entry.name));
+    }
+  }
+  return results;
+}
+
+const descriptorFiles = collectDescriptorFiles(pluginsDir);
 
 export function buildPluginCatalog(): Map<string, PluginDefinition> {
   const catalog = new Map<string, PluginDefinition>();

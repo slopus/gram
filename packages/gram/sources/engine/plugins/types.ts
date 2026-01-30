@@ -6,6 +6,7 @@ import type { AuthStore } from "../../auth/store.js";
 import type { PluginInstanceSettings, SettingsConfig } from "../../settings.js";
 import type { PluginEventInput } from "./events.js";
 import type { PluginRegistrar } from "./registry.js";
+import type { EngineEventBus } from "../ipc/events.js";
 
 export type PluginApi<TSettings = unknown> = {
   instance: PluginInstanceSettings;
@@ -17,6 +18,7 @@ export type PluginApi<TSettings = unknown> = {
   registrar: PluginRegistrar;
   fileStore: FileStore;
   mode: "runtime" | "validate";
+  engineEvents?: EngineEventBus;
   events: {
     emit: (event: PluginEventInput) => void;
   };

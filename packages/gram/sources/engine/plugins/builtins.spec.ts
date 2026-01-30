@@ -9,12 +9,12 @@ import { AuthStore } from "../../auth/store.js";
 import type { PluginApi } from "./types.js";
 import type { PluginRegistrar } from "./registry.js";
 
-import { plugin as openaiCodex } from "../../plugins/openai-codex.js";
-import { plugin as anthropic } from "../../plugins/anthropic.js";
-import { plugin as braveSearch } from "../../plugins/brave-search.js";
-import { plugin as gptImage } from "../../plugins/gpt-image.js";
-import { plugin as nanobanana } from "../../plugins/nanobanana.js";
-import { plugin as telegram } from "../../plugins/telegram.js";
+import { plugin as openaiCodex } from "../../plugins/openai-codex/index.js";
+import { plugin as anthropic } from "../../plugins/anthropic/index.js";
+import { plugin as braveSearch } from "../../plugins/brave-search/index.js";
+import { plugin as gptImage } from "../../plugins/gpt-image/index.js";
+import { plugin as nanobanana } from "../../plugins/nanobanana/index.js";
+import { plugin as telegram } from "../../plugins/telegram/index.js";
 
 const tempRoots: string[] = [];
 
@@ -76,12 +76,12 @@ describe("built-in plugins", () => {
     const registrar = createRegistrar();
 
     const openaiSettings = openaiCodex.settingsSchema.parse({});
-    const openaiApi = await createApi("openai-main", "openai-codex", openaiSettings, registrar, dir);
+    const openaiApi = await createApi("openai-codex", "openai-codex", openaiSettings, registrar, dir);
     const openaiInstance = await openaiCodex.create(openaiApi);
     await openaiInstance.load?.();
 
     const anthropicSettings = anthropic.settingsSchema.parse({});
-    const anthropicApi = await createApi("anthropic-main", "anthropic", anthropicSettings, registrar, dir);
+    const anthropicApi = await createApi("anthropic", "anthropic", anthropicSettings, registrar, dir);
     const anthropicInstance = await anthropic.create(anthropicApi);
     await anthropicInstance.load?.();
 

@@ -11,6 +11,7 @@ import { PluginModuleLoader } from "./loader.js";
 import type { PluginDefinition } from "./catalog.js";
 import type { PluginApi, PluginInstance, PluginModule } from "./types.js";
 import type { PluginRegistry } from "./registry.js";
+import type { EngineEventBus } from "../ipc/events.js";
 
 export type PluginManagerOptions = {
   settings: SettingsConfig;
@@ -21,6 +22,7 @@ export type PluginManagerOptions = {
   dataDir: string;
   eventQueue: PluginEventQueue;
   mode?: "runtime" | "validate";
+  engineEvents?: EngineEventBus;
 };
 
 type LoadedPlugin = {
@@ -41,6 +43,7 @@ export class PluginManager {
   private dataDir: string;
   private eventQueue: PluginEventQueue;
   private mode: "runtime" | "validate";
+  private engineEvents?: EngineEventBus;
   private loaded = new Map<string, LoadedPlugin>();
   private logger = getLogger("plugins.manager");
 
@@ -53,6 +56,7 @@ export class PluginManager {
     this.dataDir = options.dataDir;
     this.eventQueue = options.eventQueue;
     this.mode = options.mode ?? "runtime";
+    this.engineEvents = options.engineEvents;
   }
 
   listLoaded(): string[] {
@@ -145,6 +149,7 @@ export class PluginManager {
       registrar,
       fileStore: this.fileStore,
       mode: this.mode,
+      engineEvents: this.engineEvents,
       events: {
         emit: (event) => {
           this.eventQueue.emit(
