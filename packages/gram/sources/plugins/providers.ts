@@ -39,7 +39,8 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     kind: "pi-ai"
   },
   { id: "github-copilot", label: "GitHub Copilot", auth: "oauth", kind: "pi-ai" },
-  { id: "openai-codex", label: "OpenAI Codex", auth: "oauth", kind: "pi-ai" }
+  { id: "openai-codex", label: "OpenAI Codex", auth: "oauth", kind: "pi-ai" },
+  { id: "google-gemini-cli", label: "Google Gemini CLI", auth: "oauth", kind: "pi-ai" }
 ];
 
 export function getProviderDefinition(id: string): ProviderDefinition | null {
