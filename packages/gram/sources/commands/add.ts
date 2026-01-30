@@ -1,7 +1,6 @@
 import path from "node:path";
 
-import { intro, outro, note } from "@clack/prompts";
-import { confirm, input, password, select } from "@inquirer/prompts";
+import { confirm, input, select } from "@inquirer/prompts";
 import { getModels, getOAuthProvider, type OAuthProviderId } from "@mariozechner/pi-ai";
 
 import { AuthStore } from "../auth/store.js";
@@ -141,7 +140,7 @@ async function configureAuth(provider: ProviderDefinition, authStore: AuthStore)
   }
 
   const apiKey = await promptValue(
-    password({
+    input({
       message: provider.optionalApiKey
         ? `${provider.label} API key (optional)`
         : `${provider.label} API key`
@@ -373,4 +372,20 @@ function cleanOptions(options: Record<string, unknown>): Record<string, unknown>
   return Object.fromEntries(
     Object.entries(options).filter(([, value]) => value !== undefined && value !== "")
   );
+}
+
+function intro(message: string): void {
+  console.log(message);
+}
+
+function outro(message: string): void {
+  console.log(message);
+}
+
+function note(message: string, title?: string): void {
+  if (title) {
+    console.log(`${title}: ${message}`);
+    return;
+  }
+  console.log(message);
 }

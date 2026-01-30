@@ -1,5 +1,3 @@
-import { intro, outro } from "@clack/prompts";
-
 import { setAuth } from "../engine/client.js";
 
 export async function setAuthCommand(
@@ -10,4 +8,12 @@ export async function setAuthCommand(
   intro("gram auth");
   await setAuth(id, key, value);
   outro(`Stored ${key} for ${id}.`);
+}
+
+function intro(message: string): void {
+  console.log(message);
+}
+
+function outro(message: string): void {
+  console.log(message);
 }

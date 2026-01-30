@@ -1,5 +1,3 @@
-import { intro, outro } from "@clack/prompts";
-
 import { loadPlugin, unloadPlugin } from "../engine/client.js";
 
 export async function loadPluginCommand(
@@ -16,4 +14,12 @@ export async function unloadPluginCommand(instanceId: string): Promise<void> {
   intro("gram plugins");
   await unloadPlugin(instanceId);
   outro(`Unloaded plugin ${instanceId}.`);
+}
+
+function intro(message: string): void {
+  console.log(message);
+}
+
+function outro(message: string): void {
+  console.log(message);
 }
